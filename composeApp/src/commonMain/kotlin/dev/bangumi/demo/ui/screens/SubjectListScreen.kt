@@ -34,6 +34,8 @@ fun SubjectListScreen(
     query: String,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
+    // 点击条目时的回调，传入被点击的条目；类似 Java 的 Consumer<Subject>，页面切换由调用方决定。
+    onSubjectClick: (Subject) -> Unit,
 ) {
     // Box 负责水平居中；内层 Column 限制内容宽度，并从上到下排列标题、输入框和结果。
     Box(
@@ -117,10 +119,39 @@ fun SubjectListScreen(
                 ) {
                     // 稳定 id 用于识别条目，避免筛选改变位置后把其他条目当成原来的条目。
                     items(items = subjects, key = { subject -> subject.id }) { subject ->
-                        SubjectCard(subject = subject)
+                        // 卡片的 onClick 不带参数，这里用 Lambda 把当前 subject 补上再上报，
+                        // 卡片因此不需要知道列表页的回调类型。
+                        SubjectCard(
+                            subject = subject,
+                            onClick = { onSubjectClick(subject) },
+                        )
                     }
                 }
             }
         }
     }
 }
+
+/**
+ * 说明 LazyColumn 的工作原理。
+ *
+【你在页面写的代码】：
+items(items = subjects) { subject ->
+    SubjectCard(subject = subject)   <── 你的卡片绘制函数
+}
+      │
+      │ 传给了外层 items 方法的 itemContent 形参
+      ▼
+【外层包装 items 方法】：
+底层的 items(count = subjects.size) { index ->
+    val subject = subjects[index]
+    itemContent(subject)             <── 把它转手交给了底层引擎
+}
+      │
+      │ 注册给了 Compose 底层滚动系统
+      ▼
+【底层 LazyColumn 滚动引擎】：
+当用户滚动屏幕，需要画第 1 个位置时：
+引擎执行：itemContent(subjects[1])
+结果：屏幕上成功画出了第 1 部番剧的 SubjectCard！
+ */

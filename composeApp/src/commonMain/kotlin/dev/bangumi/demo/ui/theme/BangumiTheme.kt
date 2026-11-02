@@ -14,6 +14,9 @@ object AppDimensions {
     val mediumSpacing = 16.dp
     val largeSpacing = 24.dp
     val contentMaxWidth = 840.dp
+
+    // 可点击卡片获得键盘焦点时的描边宽度；用形状变化提示焦点，而不只依赖底色深浅。
+    val focusBorderWidth = 2.dp
 }
 
 /** content 是可绘制界面的回调；为所有子组件提供相同颜色、字体和形状。 */

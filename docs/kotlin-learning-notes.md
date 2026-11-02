@@ -23,6 +23,9 @@
   - [2.13 响应式状态 `mutableStateOf` 与可观察包装](#213-响应式状态-mutablestateof-与可观察包装)
   - [2.14 状态记忆 `remember` 与重组生命周期](#214-状态记忆-remember-与重组生命周期)
   - [2.15 绑定到对象的方法引用 `instance::method`](#215-绑定到对象的方法引用-instancemethod)
+  - [2.16 属性委托 `by` 与状态读写解耦](#216-属性委托-by-与状态读写解耦)
+  - [2.17 类型推断与 `Nothing?` 可空类型陷阱](#217-类型推断与-nothing-可空类型陷阱)
+  - [2.18 高阶函数形参的直接调用机制](#218-高阶函数形参的直接调用机制)
 - [3. Kotlin 语法糖与等价写法](#3-kotlin-语法糖与等价写法)
   - [3.1 入口代码的逐层展开](#31-入口代码的逐层展开)
   - [3.2 参数归属的判断](#32-参数归属的判断)
@@ -30,6 +33,8 @@
   - [3.4 `data class` 的 Java 对照与等价展开](#34-data-class-的-java-对照与等价展开)
   - [3.5 变量声明与 Java 对照表](#35-变量声明与-java-对照表)
   - [3.6 尾随 Lambda 构筑 DSL 容器（以 BangumiTheme 为例）](#36-尾随-lambda-构筑-dsl-容器以-bangumitheme-为例)
+  - [3.7 属性委托 `by mutableStateOf` 的展开与 Java 对照](#37-属性委托-by-mutablestateof-的展开与-java-对照)
+  - [3.8 `LazyListScope.items` 源码逐层还原（消除伪递归假象）](#38-lazylistscopeitems-源码逐层还原消除伪递归假象)
 - [4. 易错点与理解难点](#4-易错点与理解难点)
   - [4.1 `application` 没有圆括号，不代表没有参数](#41-application-没有圆括号不代表没有参数)
   - [4.2 `content` 没有参数，不代表它的函数体不能传参数](#42-content-没有参数不代表它的函数体不能传参数)
@@ -45,7 +50,21 @@
   - [4.12 Compose 受控组件（Controlled Component）与传统 Swing 控件的区别](#412-compose-受控组件controlled-component与传统-swing-控件的区别)
   - [4.13 用户输入到界面刷新的完整生命周期三阶段](#413-用户输入到界面刷新的完整生命周期三阶段)
   - [4.14 混淆函数类型 `(A) -> B` 与 Lambda 实现 `{ a -> b }`（同用箭头 `->` 的认知碰撞）](#414-混淆函数类型-a---b-与-lambda-实现-a---b-同用箭头---的认知碰撞)
+  - [4.15 为什么 `LazyColumn` 不能直接写普通 `for` 循环（按需懒加载与说明书登记模型）](#415-为什么-lazycolumn-不能直接写普通-for-循环按需懒加载与说明书登记模型)
+  - [4.16 误把单表达式函数体 `=` 当作参数声明（为什么前面形参叫 items 后面变 count）](#416-误把单表达式函数体--当作参数声明为什么前面形参叫-items-后面变-count)
+  - [4.17 误把具名传参和形参同名当成自我递归（`key = key(...)` 的撞车真相）](#417-误把具名传参和形参同名当成自我递归key--key-的撞车真相)
+  - [4.18 `if` 表达式返回 Lambda 导致的大括号嵌套（双层大括号 `{ { ... } }` 的视觉撞车）](#418-if-表达式返回-lambda-导致的大括号嵌套双层大括号----的视觉撞车)
+  - [4.19 委托属性不能智能转换（为什么要先存进局部 `val`）](#419-委托属性不能智能转换为什么要先存进局部-val)
 - [5. Kotlin 代码阅读技巧](#5-kotlin-代码阅读技巧)
+  - [5.1 先找当前调用的函数签名](#51-先找当前调用的函数签名)
+  - [5.2 为每一层标记参数归属](#52-为每一层标记参数归属)
+  - [5.3 识别 Lambda 的参数和返回值](#53-识别-lambda-的参数和返回值)
+  - [5.4 区分四种相似写法](#54-区分四种相似写法)
+  - [5.5 看到参数赋值时，先判断它是命名参数还是变量声明](#55-看到参数赋值时先判断它是命名参数还是变量声明)
+  - [5.6 追踪回调的生命周期](#56-追踪回调的生命周期)
+  - [5.7 区分代码层级和界面层级](#57-区分代码层级和界面层级)
+  - [5.8 遇到等号 `=` 连接的函数时，先将其脑补还原为 `{ return ... }`](#58-遇到等号--连接的函数时先将其脑补还原为--return--)
+  - [5.9 遇到同名具名参数时，区分等号左边（目标函数形参）与等号右边（当前作用域变量）](#59-遇到同名具名参数时区分等号左边目标函数形参与等号右边当前作用域变量)
 - [6. 重点速查](#6-重点速查)
 - [7. 待继续学习](#7-待继续学习)
 - [8. 更新记录](#8-更新记录)
@@ -78,12 +97,14 @@ application：应用运行环境
             └── App：窗口中的 Compose 界面
 ```
 
-在入口代码阅读完成后，进一步深入阅读了数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与界面总控 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)。
+在入口代码阅读完成后，进一步深入阅读了数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与界面总控 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)，并在 `BG-003 示例条目详情` 准备阶段阅读了 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中的 `LazyColumn.items` 列表渲染与选中状态设计。
 
-本轮学习完成了一次重要的认知升级 —— 从单纯的 **Kotlin 语法层面**，跨越到了 **现代响应式 GUI 架构核心机制**：
+本轮学习完成了一系列核心概念的攻坚：
 - 为什么需要 `remember` 及其充当“函数式 UI 成员变量”的意义；
 - `mutableStateOf` 响应式状态与 Compose 重组（Recomposition）的观察者驱动原理；
-- 破除“面向过程单向顺序执行”的思维盲区，建立“事件驱动（Event-Driven）+ 函数引用交接 + 状态触发全链路重绘”的完整闭环心智模型。
+- 破除“面向过程单向顺序执行”的思维盲区，建立“事件驱动（Event-Driven）+ 函数引用交接 + 状态触发全链路重绘”的完整闭环心智模型；
+- 搞懂属性委托 `by`（把读写交接给包装对象）以及初始值为 `null` 时为什么编译器强制要求显式标明泛型 `<Type?>`（类型推断与 `Nothing?` 陷阱）；
+- 彻底拆解 Compose 官方 `LazyListScope.items` 扩展函数源码：消除单表达式函数体 `=`、高阶函数形参调用、具名参数重名碰撞所带来的“自我调用递归假象”，理解列表按需虚拟渲染与数据适配器（Adapter）的本质设计。
 
 ## 2. Kotlin 核心知识点
 
@@ -909,6 +930,126 @@ SubjectListScreen(
 
 比写完整 Lambda `{ text -> state.updateQuery(text) }` 更简洁直接，表达“将此对象的更新行为直接交接给子组件”。
 
+### 2.16 属性委托 `by` 与状态读写解耦
+
+**核心概念**
+
+Kotlin 的属性委托（Property Delegation）使用 `by` 关键字，表示将该属性的取值（`getter`）和赋值（`setter`）操作，全权转交给右侧的委托对象处理。
+在 Compose 中，`by mutableStateOf(...)` 将属性的读写直接穿透映射到底层 `MutableState<T>` 对象的 `.value` 属性上：
+- 读取该变量时，自动调用委托对象的 `getValue()`；
+- 修改该变量时，自动调用委托对象的 `setValue(newValue)`。
+
+**语法**
+
+```kotlin
+// 不带 by 的普通写法：持有 MutableState 对象本身
+val queryState = mutableStateOf("")
+println(queryState.value)        // 读
+queryState.value = "书店"         // 写
+
+// 带 by 的委托写法（语法糖）：
+var query by mutableStateOf("")
+println(query)                   // 读：表面读变量，底层自动读取 .value
+query = "书店"                   // 写：表面直接赋值，底层自动调用 .value = "书店" 并触发重组
+```
+
+**本次代码中的实际用法**
+
+在 `SubjectListState.kt` 中：
+```kotlin
+var query by mutableStateOf("")
+    private set
+```
+在 `BG-003` 条目详情状态管理中：
+```kotlin
+var selectedSubject by mutableStateOf<Subject?>(null)
+```
+
+**为什么这样写**
+
+1. 消除遍布整个业务逻辑的 `.value` 样板代码，让响应式状态变量在阅读和赋值时与普通 Java 成员变量完全一致。
+2. 配合 `private set` 能够实现与 Java “公开 getter、私有 setter”完全一致的封装保护，外部只能读取状态，只有本类内部能更新状态。
+
+**必要导入**
+
+使用 `by` 委托必须导入 Compose 运行时提供的两个扩展操作符，否则编译器会提示找不到 `getValue`/`setValue`：
+```kotlin
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+```
+
+**记忆方式**
+
+`by` 是“甩手掌柜”：把属性的存取活计全权包工给右边的状态盒子，外部像用普通变量一样直接读写。
+
+### 2.17 类型推断与 `Nothing?` 可空类型陷阱
+
+**核心概念**
+
+Kotlin 具有强大的静态类型推断能力（Type Inference）。当初始值的类型清晰明确时（如 `""` 明确为 `String`），可以省略泛型类型参数；但当初始值为孤立的 `null` 时，编译器无法得知该状态未来准备装入什么对象，必须显式指明泛型类型 `<Type?>`。
+
+**语法对比与编译陷阱**
+
+| 代码写法 | 推断类型 | 后续赋值行为 | 编译结果 |
+| :--- | :--- | :--- | :--- |
+| `var query by mutableStateOf("")` | `MutableState<String>` | `query = "abc"` | 正常编译（初始值 `""` 明确是 `String`） |
+| `var selectedSubject by mutableStateOf<Subject?>(null)` | `MutableState<Subject?>` | `selectedSubject = item` | 正常编译（显式指定为可空条目类型） |
+| `var selectedSubject by mutableStateOf(null)` | `MutableState<Nothing?>` | `selectedSubject = item` | 编译当场报错！ |
+
+**为什么初始为 `null` 时不写 `<Subject?>` 会报错？**
+
+在 Kotlin 类型系统中，`null` 单独出现时属于最底层的特殊类型 `Nothing?`（代表空值且不存在任何子类型）。
+如果写成 `mutableStateOf(null)`，编译器会将它推断为 `MutableState<Nothing?>`。当后面试图给它赋值一个具体对象时：
+```text
+selectedSubject = clickedSubject
+// 错误：Type mismatch: Required 'Nothing?', Found 'Subject'
+```
+编译器会拒绝赋值，因为它认为这个状态容器“永远只能是 null”。因此，当初始值为 `null` 时，必须通过尖括号泛型明确告知编译器：“当前虽然是 `null`，但请预留一个能装 `Subject` 的坑位”。
+
+**Java 对照**
+
+这与 Java 10 的局部变量类型推断 `var` 规则完全一致：
+```java
+var text = "Hello";                  // Java 推断为 String
+var list = new ArrayList<Subject>(); // Java 推断为 ArrayList<Subject>
+var item = null;                     // Java 编译报错：无法根据 null 推断变量类型
+```
+
+**记忆方式**
+
+初始值非空，类型推断全自动；初始值是 `null`，必须尖括号指明泛型 `<Type?>` 占坑。
+
+### 2.18 高阶函数形参的直接调用机制
+
+**核心概念**
+
+在 Kotlin 中，“函数是一等公民”（First-Class Citizens）。如果一个函数的形参本身就是函数类型（如 `key: ((item: T) -> Any)?`），那么在该函数内部，这个形参名就是一个可执行的变量，可以直接像普通函数一样加圆括号调用执行：`key(item)`。
+
+**语法对比**
+
+```kotlin
+// 形参 action 声明为函数类型：接收 String，无返回值
+fun process(text: String, action: (String) -> Unit) {
+    // 在方法体内部，直接把形参当函数调用：
+    action(text)
+}
+```
+
+**Java 8 对照**
+
+在 Java 中，传递行为必须通过函数式接口（Functional Interface）。调用时必须显式调用接口的方法（如 `.apply()`、`.accept()`）：
+```java
+// Java 写法：
+void process(String text, Consumer<String> action) {
+    action.accept(text); // 必须写方法名 .accept()
+}
+```
+而在 Kotlin 中，函数类型的变量原生支持加圆括号执行 `action(text)`，语法与直接调用具名函数完全统一。
+
+**记忆方式**
+
+在 Kotlin 里，接收函数参数就像接收变量一样自然，形参名字加上小括号 `()` 就是直接执行传入的那段代码。
+
 ## 3. Kotlin 语法糖与等价写法
 
 ### 3.1 入口代码的逐层展开
@@ -1105,6 +1246,127 @@ BangumiTheme(
 - 因为 `content` 是唯一且最后一个参数，Kotlin 允许省略圆括号 `()`，直接将 Lambda 大括号写在函数名后面。
 - 这使得组件的调用形式从视觉上呈现为“样式/环境容器包裹着内部内容”，形成了极具表现力的声明式 DSL。
 
+### 3.7 属性委托 `by mutableStateOf` 的展开与 Java 对照
+
+Kotlin 中的 `by` 属性委托是一个纯粹的编译器语法糖。
+
+**Kotlin 简洁写法：**
+
+```kotlin
+class SubjectListState {
+    var query by mutableStateOf("")
+        private set
+}
+```
+
+**展开为无 `by` 语法糖的直接调用写法：**
+
+```kotlin
+class SubjectListState {
+    // 显式持有包装盒对象（类似 Java 持有 AtomicReference）
+    private val _queryState = mutableStateOf("")
+
+    // getter 直接读取包装盒的 value
+    val query: String
+        get() = _queryState.value
+
+    // setter 更新包装盒的 value（受 private set 限制）
+    private fun setQuery(newValue: String) {
+        _queryState.value = newValue
+    }
+}
+```
+
+**编译后等价的 Java 伪代码：**
+
+```java
+public final class SubjectListState {
+    // 编译器自动生成的委托字段
+    private final MutableState<String> query$delegate = SnapshotStateKt.mutableStateOf("", ...);
+
+    // 公开 getter：读取时自动记录 Compose 订阅依赖
+    public final String getQuery() {
+        return this.query$delegate.getValue();
+    }
+
+    // 私有 setter：赋值时自动触发 Compose 界面重组
+    private final void setQuery(String value) {
+        this.query$delegate.setValue(value);
+    }
+}
+```
+
+表面上是访问成员变量，底层每次读写都在调用 Compose 状态容器的方法，以此实现无感知的响应式追踪。
+
+### 3.8 `LazyListScope.items` 源码逐层还原（消除伪递归假象）
+
+在 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中调用的 `items` 函数，其官方源码叠满了各种语法糖：
+
+**官方源码（充满语法糖）：**
+
+```kotlin
+inline fun <T> LazyListScope.items(
+    items: List<T>,
+    noinline key: ((item: T) -> Any)? = null,
+    noinline contentType: (item: T) -> Any? = { null },
+    crossinline itemContent: @Composable LazyItemScope.(item: T) -> Unit
+) = items(
+    count = items.size,
+    key = if (key != null) { index: Int -> key(items[index]) } else null,
+    contentType = { index: Int -> contentType(items[index]) }
+) {
+    itemContent(items[it])
+}
+```
+
+**去糖化还原：展开为清晰的人类可读代码：**
+
+```kotlin
+// 1. 展开单表达式函数体 '=' 为明确的 '{ return ... }'
+// 2. 将易混淆的形参名重命名，区分“用户传入的规则”与“底层方法的参数”
+inline fun <T> LazyListScope.items(
+    items: List<T>,
+    noinline userKeyRule: ((item: T) -> Any)? = null,           // 用户传来的主键提取规则
+    noinline userContentTypeRule: (item: T) -> Any? = { null },  // 用户传来的类型提取规则
+    crossinline userItemContent: @Composable LazyItemScope.(item: T) -> Unit // 用户传来的卡片绘制规则
+) {
+    // 适配步骤 A：计算列表总数据量
+    val totalCount = items.size
+
+    // 适配步骤 B：将底层的“根据数字 index 查 key”转换为“从 List 取出对象交由用户规则处理”
+    val indexKeyAdapter = if (userKeyRule != null) {
+        { index: Int ->
+            val item = items[index]     // 按下标取出具体实体对象
+            userKeyRule(item)           // 执行外部用户的提取逻辑，如 subject.id
+        }
+    } else {
+        null
+    }
+
+    // 适配步骤 C：类型提取适配（同上）
+    val indexContentTypeAdapter = { index: Int ->
+        val item = items[index]
+        userContentTypeRule(item)
+    }
+
+    // 适配步骤 D：卡片绘制适配
+    val indexContentAdapter: @Composable LazyItemScope.(Int) -> Unit = { index: Int ->
+        val item = items[index]
+        userItemContent(item)           // 将实体对象喂给用户的 SubjectCard(subject)
+    }
+
+    // 最终调用：调用 LazyListScope 基础的、按 count 与 index 驱动的重载方法
+    this.items(
+        count = totalCount,
+        key = indexKeyAdapter,
+        contentType = indexContentTypeAdapter,
+        itemContent = indexContentAdapter
+    )
+}
+```
+
+通过还原可以彻底看清：该扩展函数是一个纯粹的**数据适配器（Adapter）**，在“只认数字下标的滚动引擎”与“只认业务实体的开发者代码”之间架起了一座转换桥梁。
+
 ## 4. 易错点与理解难点
 
 ### 4.1 `application` 没有圆括号，不代表没有参数
@@ -1252,6 +1514,204 @@ mutableStateOf 检测到 query 被写入新值 -> 触发 Compose 运行时对依
 - 左侧 `(Subject) -> Any`（小括号 + 类型名）：告诉编译器“这是一个接收 `Subject`、返回 `Any` 的函数规格”。
 - 右侧 `{ subject -> subject.id }`（大括号 + 变量名）：具体的代码实现，接收一个命名为 `subject` 的入参，返回它的 `id` 属性。
 
+### 4.15 为什么 `LazyColumn` 不能直接写普通 `for` 循环（按需懒加载与说明书登记模型）
+
+**产生困惑的原因**：
+在日常 Java 开发中，展示一个列表最直觉的方式就是 `for (Subject s : subjects)`。初学者会困惑为什么在 `LazyColumn` 里不能直接写 `for` 循环，非要搞一套复杂的 `items(items = subjects) { ... }`。
+
+**本质原因：海量数据下的内存与性能灾难**：
+- **普通 `Column`（全量立即执行）**：
+  ```kotlin
+  Column {
+      for (subject in subjects) {
+          SubjectCard(subject) // 立即执行 10000 次！
+      }
+  }
+  ```
+  如果数据有 10000 条，这段代码会在应用启动瞬间一次性在内存中实例化 10000 个卡片组件对象，导致应用瞬间卡死、掉帧甚至直接触发 OOM（Out Of Memory 内存溢出）。
+- **`LazyColumn`（懒加载虚拟列表，类似 Android `RecyclerView` / 虚拟滚动列表）**：
+  它的核心设计哲学是**按需绘制**：用户的屏幕可视区域只能塞下 5 张卡片，那么在内存中就只渲染这 5 张；随着用户鼠标滚动，滑出屏幕的卡片被回收销毁，滑入屏幕的卡片才被即时创建。
+
+**心智模型转换：从“立即执行”到“登记说明书”**：
+因此，在 `LazyColumn` 内部调用 `items(...)` 时，**根本没有执行任何一个卡片的绘制**！它只是在向底层列表引擎登记一份“配方/说明书”：
+> “我把 10000 条数据列表交给你保管。现在你不要画任何卡片。等后面用户滚动屏幕，需要画第 3 项时，你再拿着我的说明书去画第 3 项！”
+
+### 4.16 误把单表达式函数体 `=` 当作参数声明（为什么前面形参叫 `items` 后面变 `count`）
+
+**产生困惑的原因**：
+在阅读 `LazyListScope.items` 源码时：
+```kotlin
+inline fun <T> LazyListScope.items(
+    items: List<T>,
+    ...
+) = items(
+    count = items.size,
+    ...
+)
+```
+容易误以为后面的 `count = items.size` 是在“重新定义或更改前面的形参名字”，从而完全摸不着头脑。
+
+**本质原因：忽略了单表达式函数体 `=` 的本质**：
+- 在 Kotlin 中，`fun foo(...) = expression` 只是 `fun foo(...) { return expression }` 的语法糖。
+- 等号 `=` 后面不是函数的签名声明，而是**真正的函数执行体**！
+- 等号后面的 `items(...)` 是在**调用另一个底层的重载方法**。
+- `count = items.size` 是调用方法时的**具名传参语法**：把当前方法的局部变量 `items.size` 作为实参，传给底层方法的 `count` 形参。
+
+**对比还原**：
+```kotlin
+// 源码看到的紧凑写法：
+fun items(items: List<T>) = items(count = items.size)
+
+// 还原为传统写法：
+fun items(items: List<T>) {
+    // 明确调用另一个重载方法并 return 其结果
+    return this.items(count = items.size); 
+}
+```
+
+### 4.17 误把具名传参和形参同名当成自我递归（`key = key(...)` 的撞车真相）
+
+**产生困惑的原因**：
+源码中出现形如：
+```kotlin
+key = if (key != null) { index: Int -> key(items[index]) } else null
+contentType = { index: Int -> contentType(items[index]) }
+```
+很多初学者第一反应是：“这个函数内部为什么在不断调用自己？这不是无限死循环/递归吗？”
+
+**本质原因：形参名字与具名参数标签重名碰撞**：
+这里出现了两个维度的 `key`：
+1. **等号左边的 `key =`**：这是 Kotlin 的**具名参数语法**（Named Argument），指明要传给底层重载方法的哪一个形参。
+2. **等号右边的 `key(...)`**：这是外层方法接收进来的**高阶函数形参变量**（也就是调用者传进来的 Lambda，如 `{ subject -> subject.id }`）。
+3. **括号内的 `items[index]`**：底层引擎只知数字下标 `index`，因此通过 `items[index]` 从列表中取出具体的业务对象，再喂给调用者传入的 `key` 规则函数。
+
+**改名对照（一秒看破玄机）**：
+```kotlin
+// 如果库作者没有偷懒把名字起得一模一样，原代码本质上就是：
+底层方法的参数key = if (用户传进来的主键规则 != null) {
+    { 序号: Int -> 
+        val 对象 = items[序号]
+        用户传进来的主键规则(对象) // 仅仅是在执行用户传入的代码块！完全没有自我递归！
+    }
+} else {
+    null
+}
+```
+
+### 4.18 `if` 表达式返回 Lambda 导致的大括号嵌套（双层大括号 `{ { ... } }` 的视觉撞车）
+
+**产生困惑的代码原型**：
+```kotlin
+val indexKeyRule = if (userKeyRule != null) {
+// ┌── 这个外层大括号，是 if 的代码块
+// │
+   { index: Int ->                // ┌── 这个内层大括号，是 Lambda 函数本身！
+       val item = items[index]    // │
+       userKeyRule(item)          // │
+   }                              // └── Lambda 结束，把它作为 if 的结果返回！
+// │
+// └── if 代码块结束
+} else {
+    null
+}
+```
+
+**为什么会产生“鬼畜”感？**
+看到两个大括号套在一起 `{ { ... } }`，让人第一感觉像某种语病或特殊的嵌套语法。其实这是 **Kotlin 的三个独立语法特性碰巧撞在了一起**：
+
+1. **`if` 是表达式（Expression），而不是语句（Statement）**：
+   - 在 Java 中，`if` 只是流程控制语句，无法直接把执行结果赋给变量（必须借助于三元运算符 `? :`）。
+   - 在 Kotlin 中没有三元运算符，`if-else` 本身就是表达式，分支内最后一行代码的值就是整个分支的返回值，能直接赋值给变量：`val x = if (condition) a else b`。
+2. **Lambda 表达式本身必须用大括号 `{}` 包裹**：
+   - 当 `if` 分支需要返回的是一个“函数对象”时，这个函数对象天然自带一层大括号 `{ index -> ... }`。
+3. **`if` 分支体本身也习惯使用大括号 `{}` 包裹**：
+   - 外层大括号是 `if (userKeyRule != null) { ... }` 划定的分支作用域范围。
+   - 两者叠在一起，在视觉上就形成了双层大括号嵌套 `{ { ... } }`。
+
+**Java 经典对照（还原为平平无奇的传统写法）**：
+
+如果用 Java 8 的函数式编程来写完全相同的业务逻辑，它其实非常朴素：
+```java
+// Java 写法：
+Function<Integer, Object> indexKeyRule;
+
+if (userKeyRule != null) {
+    // 满足条件：新建一个 Lambda 函数对象赋给变量
+    indexKeyRule = (index) -> {
+        Subject item = items.get(index);
+        return userKeyRule.apply(item);
+    };
+} else {
+    indexKeyRule = null;
+}
+```
+或使用 Java 的三元运算符：
+```java
+Function<Integer, Object> indexKeyRule = (userKeyRule != null)
+    ? (index -> userKeyRule.apply(items.get(index)))
+    : null;
+```
+
+**如何避免写出这种容易看懵的代码？**
+
+- **优化方式 A：省去 `if` 外层大括号（单行三元运算符风格，Compose 官方源码采用的方式）**：
+  如同 Java 单行 `if` 可以省去大括号一样，当 `if` 分支只有这一个 Lambda 返回值时，可以去掉外层大括号，只保留 Lambda 自身的大括号：
+  ```kotlin
+  val indexKeyRule = if (userKeyRule != null) { index: Int -> userKeyRule(items[index]) } else null
+  ```
+- **优化方式 B：分步声明（最清晰直白，便于打断点和阅读）**：
+  ```kotlin
+  val indexKeyRule = if (userKeyRule == null) {
+      null
+  } else {
+      // 明确只返回一个 Lambda
+      { index: Int -> userKeyRule(items[index]) }
+  }
+  ```
+
+**记忆方式**
+
+外层大括号管 `if` 的地盘；内层大括号是要作为战利品交出去的“函数对象”。
+
+### 4.19 委托属性不能智能转换（为什么要先存进局部 `val`）
+
+**产生困惑的代码原型**（[App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)）：
+```kotlin
+val selectedSubject = state.selectedSubject   // 先读到局部 val
+if (selectedSubject == null) {
+    SubjectListScreen(...)
+} else {
+    SubjectDetailScreen(subject = selectedSubject, ...)  // 这里已是非空 Subject
+}
+```
+
+如果省掉局部变量，直接写 `if (state.selectedSubject == null) ... else SubjectDetailScreen(subject = state.selectedSubject, ...)`，编译器会报错（2026-11-02 用本项目的 Kotlin 2.2.21 实际编译确认）：`Smart cast to 'Subject' is impossible, because 'selectedSubject' is a delegated property.`
+
+**什么是智能转换（smart cast）**
+
+Kotlin 在 `if (x != null)` 或 `if (x == null) ... else` 之后，会在确定安全的分支里自动把 `Subject?` 当作 `Subject` 使用，省去 Java 中的手动强转或重复判空。前提是：编译器能证明“判断时读到的值”和“使用时读到的值”一定是同一个。
+
+**为什么这里证明不了**
+
+- `selectedSubject` 声明为 `var selectedSubject by mutableStateOf<Subject?>(null)`，是委托属性。每次读取 `state.selectedSubject` 都会调用一次委托的 `getValue()`，相当于 Java 每次调用 `getSelectedSubject()`。
+- 编译器不会假设两次 getter 调用返回同一个值，所以第一次读取判空，不代表第二次读取也非空。
+- “别的线程可能改掉它”只是 getter 可能返回不同值的原因之一；真正的规则是：带自定义 getter 或委托的属性、`open` 属性、其他模块的属性都不做智能转换。普通的局部 `val` 和函数参数只读一次、不会变，因此可以智能转换。
+
+**Java 对照**
+```java
+// Java 中常见的同类写法：先把 getter 的结果存进局部变量，再判空并使用
+Subject selected = state.getSelectedSubject();
+if (selected == null) {
+    showList();
+} else {
+    showDetail(selected);   // 用的是同一次读取的结果
+}
+```
+
+**记忆方式**
+
+需要“判空后直接用”的属性，先用局部 `val` 拍一张快照，再对快照判空。另一个常见写法是 `state.selectedSubject?.let { subject -> ... }`，效果相同。
+
 ## 5. Kotlin 代码阅读技巧
 
 ### 5.1 先找当前调用的函数签名
@@ -1356,6 +1816,27 @@ val title = "Bangumi"     // 变量声明
 
 这能避免把 Lambda 的代码嵌套误认为窗口对象的物理嵌套。
 
+### 5.8 遇到等号 `=` 连接的函数时，先将其脑补还原为 `{ return ... }`
+
+看到形如：
+```kotlin
+fun items(...) = items(...)
+```
+切勿将等号后面的内容误认为是函数签名或类型定义。在脑海中立刻将其翻译为：
+```kotlin
+fun items(...) {
+    return items(...) // 这是一个明确的方法调用！
+}
+```
+这样能迅速理清调用层级与方法的委托转发逻辑。
+
+### 5.9 遇到同名具名参数时，区分等号左边（目标函数形参）与等号右边（当前作用域变量）
+
+看到形如 `param = param(...)` 时：
+- **等号左侧的 `param =`**：属于**被调用函数**的形参标签；
+- **等号右侧的 `param(...)`**：属于**当前作用域**中的变量名或高阶函数形参调用。
+两者只是碰巧同名，绝非语法上的自身递归调用。
+
 ## 6. 重点速查
 
 | 语法 | 一句话记忆 |
@@ -1387,6 +1868,10 @@ val title = "Bangumi"     // 变量声明
 | `instance::method` | 绑定到具体对象实例的方法引用，保留该对象的 this 上下文 |
 | `(Type) -> ReturnType` | 函数类型：声明函数规格（小括号包裹类型名称） |
 | `{ param -> body }` | Lambda 表达式：函数可执行实现（大括号包裹变量名与逻辑） |
+| `var x by mutableStateOf(...)` | 属性委托：读写直接穿透到 State 的 value，无感触发重组 |
+| `mutableStateOf<Type?>(null)` | 初始为 null 时必须显式声明泛型，防止推断为 `Nothing?` 陷阱 |
+| `fun f(...) = otherFun(...)` | 单表达式函数体：等号后是在调用其他方法并直接返回结果 |
+| `key = { index -> key(items[index]) }` | 适配器模式：数字下标查表取对象，再交给外部用户规则 |
 
 ## 7. 待继续学习
 
@@ -1407,3 +1892,7 @@ val title = "Bangumi"     // 变量声明
 | 2026-09-19 | 新增 `val/var` 变量声明结构、类型推导、Java 10 `var` 对比误区澄清，以及只读列表 `listOf(...)` 的说明。 | 阅读 `composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt`，梳理 `val sampleSubjects: List<Subject>` 的语法构成与 Java 对照。 |
 | 2026-09-19 | 补充响应式状态（`mutableStateOf`）、状态记忆（`remember`）、绑定实例的方法引用（`state::updateQuery`）、受控组件（Controlled Component）机制，以及从物理按键到界面重组刷新的三阶段完整闭环生命周期。 | 阅读 `App.kt`、`SubjectListState.kt` 与 `SubjectListScreen.kt`，系统梳理 GUI 事件驱动与响应式状态流转心智模型。 |
 | 2026-09-20 | 辨析函数类型声明 `(Type) -> ReturnType` 与 Lambda 实现 `{ param -> body }` 的本质区别（小括号与类型名 vs 大括号与变量名/实现代码）。 | 阅读 `SubjectListScreen.kt`，围绕 Lambda 箭头语法与函数类型的认知混淆展开讨论。 |
+| 2026-09-21 | 新增属性委托 `by`（`getValue`/`setValue` 读写解耦）、初始为 null 时的泛型类型推断与 `Nothing?` 陷阱；解构 `LazyListScope.items` 源码，澄清单表达式函数体 `=`、高阶函数形参直接调用与同名具名参数碰撞产生的“自我调用”假象；阐明 `LazyColumn` 按需懒加载与普通 `for` 循环的本质差异；剖析 `if` 表达式返回 Lambda 导致双层大括号嵌套 `{ { ... } }` 的视觉撞车原因与去糖化写法。 | 阅读 `SubjectListState.kt` 与 `SubjectListScreen.kt`，系统解析 `by mutableStateOf<Subject?>(null)` 与 `items` 源码底层逻辑。 |
+| 2026-11-02 | 新增 4.19：委托属性不能智能转换，以及先存入局部 `val` 再判空的原因与 Java 对照；纠正原先“仅因多线程”的说法。 | 完成 BG-003 时整理 `App.kt` 中根据 `selectedSubject` 切换列表页与详情页的代码。 |
+
+

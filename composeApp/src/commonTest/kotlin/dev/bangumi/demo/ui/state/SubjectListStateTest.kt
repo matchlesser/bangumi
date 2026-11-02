@@ -3,6 +3,7 @@ package dev.bangumi.demo.ui.state
 import dev.bangumi.demo.model.Subject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 直接测试筛选和状态事件，无需窗口；@Test 类似 Java JUnit 的测试方法标记。 */
@@ -94,5 +95,26 @@ class SubjectListStateTest {
             assertEquals("", state.query)
             assertEquals(subjects, state.visibleSubjects)
         }
+    }
+
+    // 进入详情再返回时，只改变选中条目，不应丢失关键词和筛选结果。
+    @Test
+    fun selectingAndClearingSubjectPreservesListState() {
+        val state = SubjectListState(subjects)
+        state.updateQuery("书店")
+
+        assertNull(state.selectedSubject)
+
+        state.selectSubject(subjects[1])
+
+        assertEquals(subjects[1], state.selectedSubject)
+        assertEquals("书店", state.query)
+        assertEquals(listOf(subjects[1]), state.visibleSubjects)
+
+        state.clearSelectedSubject()
+
+        assertNull(state.selectedSubject)
+        assertEquals("书店", state.query)
+        assertEquals(listOf(subjects[1]), state.visibleSubjects)
     }
 }
