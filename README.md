@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-当前版本 1.0.0，已完成 `BG-001`～`BG-005`、`BG-007`、`BG-013`～`BG-018`（BG-017、BG-018 尚未打进安装包）：
+当前版本 1.1.0，已完成 `BG-001`～`BG-005`、`BG-007`、`BG-013`～`BG-018`。安装包发布在 [GitHub Releases](https://github.com/matchlesser/bangumi/releases)：
 
 - 首页分为“搜索”和“索引”两个标签页。
 - 搜索：输入作品名称，按回车或点击“搜索”，从 Bangumi 获取真实条目；可按类型筛选（全部、动画、书籍、音乐、游戏、三次元），可按匹配度、收藏人数、排名或评分排序；卡片标出“动画 · TV”“书籍 · 漫画”等类型和日期。每次显示 20 条，列表底部可“加载更多”；搜索中、无结果和失败时都有提示，失败后可以重试。
@@ -115,7 +115,7 @@ cd D:\Projects\workspace\bangumi
 .\gradlew.bat :composeApp:packageMsi
 ```
 
-安装包生成在 `composeApp\build\compose\binaries\main\msi\Bangumi-1.0.0.msi`（约 59 MB）。第一次打包会自动下载 WiX 打包工具，需要联网。双击 MSI 即可安装，默认装到 `%LOCALAPPDATA%\Bangumi`，可在系统“已安装的应用”中卸载；卸载前请先关闭程序，否则正在使用的文件无法删除。
+安装包生成在 `composeApp\build\compose\binaries\main\msi\Bangumi-<版本号>.msi`（约 59 MB）。第一次打包会自动下载 WiX 打包工具，需要联网。双击 MSI 即可安装，默认装到 `%LOCALAPPDATA%\Bangumi`，可在系统“已安装的应用”中卸载；卸载前请先关闭程序，否则正在使用的文件无法删除。
 
 - 版本号只在 `composeApp/build.gradle.kts` 的 `appVersion` 中修改；发布新版本时提高版本号，安装新包会替换旧版本。
 - 不想安装、只想得到可直接运行的文件夹时，可执行 `.\gradlew.bat :composeApp:createDistributable`，程序位于 `composeApp\build\compose\binaries\main\app\Bangumi\Bangumi.exe`。

@@ -9,7 +9,7 @@ plugins {
 
 // 应用版本号只在这里维护：安装包版本和代码中的 BuildInfo.VERSION（User-Agent、界面显示）都来自它。
 // MSI 要求“主版本.次版本.修订号”三段数字，前两段不超过 255。
-val appVersion = "1.0.0"
+val appVersion = "1.1.0"
 
 // 生成 BuildInfo.kt，让共享代码能读取版本号；类似 Android 项目中自动生成的 BuildConfig。
 // 文件写在 build 目录下（不提交到 Git），每次构建按需重新生成。
