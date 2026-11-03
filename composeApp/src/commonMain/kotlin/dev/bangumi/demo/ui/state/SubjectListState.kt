@@ -7,7 +7,8 @@ import dev.bangumi.demo.model.Subject
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * 保存列表页的输入、搜索结果和选中条目，并处理事件；不负责布局，也不自己发网络请求。
+ * 保存搜索页的输入和搜索结果，并处理事件；不负责布局，也不自己发网络请求。
+ * 点击结果后打开哪个页面由 AppNavigator 负责。
  *
  * @param searchSubjects 真正执行搜索的函数。类型 suspend (String) -> List<Subject> 和 onClick 的 () -> Unit 一样是函数类型，
  *   只是多了 suspend（可挂起，见 BangumiApi.searchSubjects）。程序运行时传入 BangumiApi 的方法，
@@ -32,10 +33,6 @@ class SubjectListState(private val searchSubjects: suspend (String) -> List<Subj
 
     /** 最近一次搜索失败的原因；null 表示没有错误。 */
     var errorMessage by mutableStateOf<String?>(null)
-        private set
-
-    /** 当前查看详情的条目；null 表示显示列表。 */
-    var selectedSubject by mutableStateOf<Subject?>(null)
         private set
 
     /** 接收输入框原文；只记录文字，不会立即发请求，按回车或点“搜索”时才调用 search。 */
@@ -76,15 +73,5 @@ class SubjectListState(private val searchSubjects: suspend (String) -> List<Subj
         query = ""
         results = null
         errorMessage = null
-    }
-
-    /** 保存用户选择的条目，界面据此显示详情；关键词和搜索结果不变。 */
-    fun selectSubject(subject: Subject) {
-        selectedSubject = subject
-    }
-
-    /** 清除选中的条目，界面返回列表，原来的搜索结果仍然保留。 */
-    fun clearSelectedSubject() {
-        selectedSubject = null
     }
 }

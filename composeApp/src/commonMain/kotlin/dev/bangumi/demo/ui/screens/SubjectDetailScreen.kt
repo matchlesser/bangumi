@@ -1,82 +1,250 @@
 package dev.bangumi.demo.ui.screens
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import dev.bangumi.demo.model.Subject
+import androidx.compose.ui.unit.dp
+import dev.bangumi.demo.model.CharacterSummary
+import dev.bangumi.demo.model.SubjectComments
+import dev.bangumi.demo.model.SubjectDetail
+import dev.bangumi.demo.ui.components.ClickableCard
+import dev.bangumi.demo.ui.components.DetailPage
+import dev.bangumi.demo.ui.components.DetailSection
+import dev.bangumi.demo.ui.components.LoadStateContent
+import dev.bangumi.demo.ui.components.RatingDistribution
 import dev.bangumi.demo.ui.components.ScoreLabel
+import dev.bangumi.demo.ui.components.SecondaryText
+import dev.bangumi.demo.ui.components.TagLabel
+import dev.bangumi.demo.ui.components.currentEpochSeconds
+import dev.bangumi.demo.ui.components.formatCount
+import dev.bangumi.demo.ui.components.formatRelativeTime
+import dev.bangumi.demo.ui.state.LoadState
+import dev.bangumi.demo.ui.state.SubjectDetailState
 import dev.bangumi.demo.ui.theme.AppDimensions
 
 /**
- * 显示一部番剧的详情，并通过回调报告返回操作。
+ * 条目详情页：标题与基本信息、评分分布、简介、主要人物、吐槽。
  *
- * 与列表页一样只负责绘制：不保存“当前选中谁”，也不自己切换页面。
- * 点击返回时只调用 onBack，由 App 交给状态对象处理，因此关键词和筛选结果不会因进入详情而丢失。
+ * 页面只读取 state 中的数据并上报事件；什么时候加载、怎样重试由 App 和状态对象负责。
+ * 三块数据（基本信息、角色、吐槽）各自显示加载中或失败，一块失败不影响其他部分。
  *
- * @param subject 当前需要显示的番剧，由调用方保证非空。
- * @param onBack 用户点击返回按钮时执行的操作，类似 Java 中传入的 Runnable 监听器。
+ * @param scrollState 滚动位置，由返回栈中的页面对象保存。
+ * @param onRetry 某一块加载失败后点“重试”时调用；只会重新请求失败的部分。
+ * @param onCharacterClick 点击角色卡片时调用，打开角色详情。
  */
 @Composable
 fun SubjectDetailScreen(
-    subject: Subject,
+    state: SubjectDetailState,
+    scrollState: ScrollState,
     onBack: () -> Unit,
+    onRetry: () -> Unit,
+    onCharacterClick: (CharacterSummary) -> Unit,
 ) {
-    // 外层与列表页使用相同的边距和最大内容宽度，切换页面时内容位置保持一致。
-    // verticalScroll 让简介较长或窗口较矮时可以用鼠标滚轮滚动；
-    // rememberScrollState 在重组之间记住滚动位置，作用类似 remember 记住状态对象。
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(AppDimensions.largeSpacing),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        Column(
-            modifier = Modifier.widthIn(max = AppDimensions.contentMaxWidth).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppDimensions.largeSpacing),
+    DetailPage(scrollState = scrollState, onBack = onBack) {
+        // 详情加载完成前先显示上一页带来的标题；as? 在类型不符时得到 null，而不是抛出异常。
+        val detail = (state.detail as? LoadState.Success)?.data
+        Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
+            Text(
+                text = detail?.name ?: state.title,
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            if (detail != null && detail.originalName != detail.name) {
+                SecondaryText(detail.originalName)
+            }
+        }
+
+        // 基本信息、评分分布和简介都来自同一个接口，一起显示加载中或失败。
+        LoadStateContent(state = state.detail, onRetry = onRetry) { loaded ->
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.largeSpacing)) {
+                SubjectInfo(loaded)
+                DetailSection(title = "评分分布") {
+                    if (loaded.ratingTotal == 0) {
+                        SecondaryText("还没有人评分。")
+                    } else {
+                        RatingDistribution(counts = loaded.ratingCounts, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+                DetailSection(title = "简介") {
+                    Text(
+                        text = if (loaded.summary.isBlank()) "暂无简介" else loaded.summary,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+
+        DetailSection(title = "主要人物") {
+            LoadStateContent(state = state.characters, onRetry = onRetry) { characters ->
+                CharacterList(characters = characters, onCharacterClick = onCharacterClick)
+            }
+        }
+
+        DetailSection(title = "吐槽") {
+            LoadStateContent(state = state.comments, onRetry = onRetry) { comments ->
+                CommentList(comments = comments)
+            }
+        }
+    }
+}
+
+/** 评分、排名、放送信息、收藏人数和数据来源。 */
+@Composable
+private fun SubjectInfo(detail: SubjectDetail) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 文字按钮可用鼠标点击，也可用 Tab 聚焦后按 Enter 返回；未引入图标库，因此用文字箭头。
-            TextButton(onClick = onBack) {
-                Text("← 返回列表")
+            ScoreLabel(score = detail.score)
+            if (detail.rank != null) {
+                Text(text = "Bangumi 排名 #${detail.rank}", style = MaterialTheme.typography.bodyMedium)
             }
-
-            // 标题区：名称、评分，以及数据来源说明和 Bangumi 条目编号。
-            Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
-                Text(
-                    text = subject.name,
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                // 与列表卡片共用评分组件，“暂无评分”等规则只维护一处。
-                ScoreLabel(score = subject.score)
-                Text(
-                    text = "数据来自 Bangumi 番组计划（bgm.tv），条目编号 ${subject.id}。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (detail.ratingTotal > 0) {
+                SecondaryText("${formatCount(detail.ratingTotal)} 人评分")
             }
+        }
+        // listOfNotNull 只保留非 null 的项，缺少的信息不会留下多余的分隔符。
+        val meta = listOfNotNull(detail.platform, detail.date, detail.episodes?.let { "$it 话" })
+        if (meta.isNotEmpty()) {
+            Text(text = meta.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
+        }
+        val collection = detail.collection
+        SecondaryText(
+            "看过 ${formatCount(collection.collect)} · 在看 ${formatCount(collection.doing)} · " +
+                "想看 ${formatCount(collection.wish)} · 搁置 ${formatCount(collection.onHold)} · " +
+                "抛弃 ${formatCount(collection.dropped)}",
+        )
+        SecondaryText("数据来自 Bangumi 番组计划（bgm.tv），条目编号 ${detail.id}。")
+    }
+}
 
-            // 简介区：列表卡片只显示两行预览，这里显示全文；没有简介时明确提示。
-            Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
+/**
+ * 角色列表，两列排列。默认只显示主角和配角；其余角色（客串、闲角等）点击按钮后展开。
+ * 条目没有标注主角或配角时，直接显示全部角色。
+ */
+@Composable
+private fun CharacterList(
+    characters: List<CharacterSummary>,
+    onCharacterClick: (CharacterSummary) -> Unit,
+) {
+    if (characters.isEmpty()) {
+        SecondaryText("Bangumi 尚未登记角色。")
+        return
+    }
+    // 是否展开全部角色只影响本区块的显示，用 remember 保存在界面中即可。
+    var showAll by remember { mutableStateOf(false) }
+    val mainCharacters = characters.filter { it.isMain }
+    val visible = if (showAll || mainCharacters.isEmpty()) characters else mainCharacters
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
+        // chunked(2) 每两个角色分成一行；IntrinsicSize.Min 让同一行的两张卡片高度一致。
+        visible.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+            ) {
+                row.forEach { character ->
+                    CharacterCard(
+                        character = character,
+                        onClick = { onCharacterClick(character) },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                }
+                // 最后一行只有一个角色时，用空白占住右半边，保持卡片宽度一致。
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        if (mainCharacters.isNotEmpty() && mainCharacters.size < characters.size) {
+            TextButton(onClick = { showAll = !showAll }) {
+                Text(if (showAll) "只看主要人物" else "显示全部 ${characters.size} 位角色")
+            }
+        }
+    }
+}
+
+/** 一个角色：名字、在本作中的定位、声优。 */
+@Composable
+private fun CharacterCard(
+    character: CharacterSummary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ClickableCard(onClick = onClick, modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(AppDimensions.mediumSpacing),
+            verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = "简介",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = character.name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
                 )
-                Text(
-                    text = if (subject.summary.isBlank()) "暂无简介" else subject.summary,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                if (character.relation.isNotBlank()) {
+                    TagLabel(text = character.relation)
+                }
+            }
+            SecondaryText(character.voiceActor?.let { "CV：$it" } ?: "暂无声优信息")
+        }
+    }
+}
+
+/** 最新吐槽：用户、收藏状态、打分、相对时间和内容。 */
+@Composable
+private fun CommentList(comments: SubjectComments) {
+    if (comments.items.isEmpty()) {
+        SecondaryText("还没有人吐槽。")
+        return
+    }
+    // “现在”在本区块第一次显示时读取一次；remember 避免每次重组都重新读取系统时间。
+    val now = remember { currentEpochSeconds() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
+        SecondaryText("共 ${formatCount(comments.total)} 条，显示最新 ${comments.items.size} 条。")
+        comments.items.forEach { comment ->
+            HorizontalDivider()
+            Column(
+                modifier = Modifier.padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = comment.userName, style = MaterialTheme.typography.titleSmall)
+                    TagLabel(text = comment.status)
+                    if (comment.rate != null) {
+                        TagLabel(text = "${comment.rate} 分")
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    SecondaryText(formatRelativeTime(comment.updatedAt, now))
+                }
+                if (comment.text.isNotBlank()) {
+                    Text(text = comment.text, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
     }

@@ -143,22 +143,4 @@ class SubjectListStateTest {
         assertNull(state.results)
         assertNull(state.errorMessage)
     }
-
-    // 进入详情再返回时，只改变选中条目，不应丢失关键词和搜索结果。
-    @Test
-    fun selectingAndClearingSubjectPreservesSearchResults() = runTest {
-        val state = SubjectListState { sampleSubjects }
-        state.updateQuery("孤独摇滚")
-        state.search()
-
-        state.selectSubject(sampleSubjects[1])
-
-        assertEquals(sampleSubjects[1], state.selectedSubject)
-
-        state.clearSelectedSubject()
-
-        assertNull(state.selectedSubject)
-        assertEquals("孤独摇滚", state.query)
-        assertEquals(sampleSubjects, state.results)
-    }
 }

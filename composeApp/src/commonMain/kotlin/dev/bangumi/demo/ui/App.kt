@@ -1,65 +1,87 @@
 package dev.bangumi.demo.ui
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import dev.bangumi.demo.model.Subject
+import dev.bangumi.demo.data.BangumiApi
+import dev.bangumi.demo.ui.screens.CharacterDetailScreen
 import dev.bangumi.demo.ui.screens.SubjectDetailScreen
 import dev.bangumi.demo.ui.screens.SubjectListScreen
+import dev.bangumi.demo.ui.state.AppNavigator
+import dev.bangumi.demo.ui.state.Screen
 import dev.bangumi.demo.ui.state.SubjectListState
 import dev.bangumi.demo.ui.theme.BangumiTheme
 import kotlinx.coroutines.launch
 
 /**
- * 共享界面入口：接收“怎样搜索”的函数，连接状态与页面，并应用统一主题。
- * 状态存放在页面调用者中，页面只读取值和上报事件，便于分别阅读与测试。
- * 根据 selectedSubject 决定显示列表页或详情页；两个页面都不知道对方存在。
+ * 共享界面入口：创建各页面的状态，根据返回栈顶部的页面决定显示什么，并把页面事件交给状态对象。
+ * 页面本身只读取数据和上报事件，不知道其他页面存在，也不直接发网络请求。
  *
- * @param searchSubjects 执行搜索的 suspend 函数，由桌面入口传入 BangumiApi 的方法。
+ * @param api 访问 Bangumi 的数据层，由桌面入口创建并传入。
  */
 @Composable
-fun App(searchSubjects: suspend (String) -> List<Subject>) {
-    // remember 在界面刷新（重组）时保留同一个状态对象；类比 Java 界面持有一个字段，而不是每次刷新都 new。
-    val state = remember(searchSubjects) { SubjectListState(searchSubjects) }
+fun App(api: BangumiApi) {
+    // remember 在重组时保留同一个对象；App 一直显示，所以搜索状态和返回栈在切换页面时都不会丢失。
+    val searchState = remember(api) { SubjectListState(api::searchSubjects) }
+    val navigator = remember(api) { AppNavigator(api) }
 
-    // 协程作用域：用来启动搜索这样的后台任务。它跟随 App 的生命周期，窗口关闭时会自动取消未完成的请求。
+    // 协程作用域：用来启动搜索、重试这样的后台任务；窗口关闭时自动取消未完成的请求。
     val scope = rememberCoroutineScope()
+
+    // 搜索结果列表的滚动位置保存在这里而不是列表页里，从详情返回时仍停在原来的位置。
+    // 以 results 为键：每次搜索得到新结果时换一个新的 LazyListState，列表自动回到顶部。
+    val listState = remember(searchState.results) { LazyListState() }
 
     BangumiTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-            // 先读到局部 val 再判空：selectedSubject 是 by 委托属性，每次读取都会重新调用 getter，
-            // 编译器不能保证两次读到同一个值，所以不会把 state.selectedSubject 自动当作非空。
-            // 局部 val 只读一次，判空后在 else 分支中就是非空的 Subject（智能转换）。
-            val selectedSubject = state.selectedSubject
-            if (selectedSubject == null) {
-                // 读取可观察状态后，Compose 会在它变化时重新执行依赖它的界面代码。
-                // state::updateQuery 是函数引用，类似 Java 的 state::updateQuery 方法引用。
-                SubjectListScreen(
-                    subjects = state.results,
-                    query = state.query,
-                    isLoading = state.isLoading,
-                    errorMessage = state.errorMessage,
-                    onQueryChange = state::updateQuery,
-                    // search 是 suspend 函数，不能在点击回调里直接调用；
-                    // launch 启动一个协程去执行它，点击回调本身立即返回，界面不会卡住。
-                    onSearch = { scope.launch { state.search() } },
-                    onClearQuery = state::clearQuery,
-                    // 列表上报被点击的条目，状态对象保存后 selectedSubject 变化，本函数重组并进入 else 分支。
-                    onSubjectClick = state::selectSubject,
+            // navigator.current 读取可观察的返回栈；打开或关闭页面时这里会重组并显示新的页面。
+            // when (val screen = ...) 先取出当前页面，再按类型分别处理；is 判断后 screen 自动转换为对应类型。
+            when (val screen = navigator.current) {
+                Screen.Search -> SubjectListScreen(
+                    subjects = searchState.results,
+                    query = searchState.query,
+                    isLoading = searchState.isLoading,
+                    errorMessage = searchState.errorMessage,
+                    listState = listState,
+                    onQueryChange = searchState::updateQuery,
+                    // search 是 suspend 函数，不能在点击回调里直接调用；launch 启动一个协程去执行它。
+                    onSearch = { scope.launch { searchState.search() } },
+                    onClearQuery = searchState::clearQuery,
+                    onSubjectClick = { subject -> navigator.openSubject(subject.id, subject.name) },
                 )
-            } else {
-                // 返回只清空选中条目；搜索结果未被修改，回到列表时仍然显示。
-                SubjectDetailScreen(
-                    subject = selectedSubject,
-                    onBack = state::clearSelectedSubject,
-                )
+
+                is Screen.SubjectDetail -> {
+                    // LaunchedEffect 在这个页面显示时启动一次加载；以 screen 为键，换成别的页面对象时重新启动。
+                    // 从角色页返回时页面重新显示，load 只会补上未完成的部分，已经成功的数据不会重新请求。
+                    LaunchedEffect(screen) { screen.state.load() }
+                    SubjectDetailScreen(
+                        state = screen.state,
+                        scrollState = screen.scrollState,
+                        onBack = navigator::back,
+                        onRetry = { scope.launch { screen.state.load() } },
+                        onCharacterClick = { character -> navigator.openCharacter(character.id, character.name) },
+                    )
+                }
+
+                is Screen.CharacterDetail -> {
+                    LaunchedEffect(screen) { screen.state.load() }
+                    CharacterDetailScreen(
+                        state = screen.state,
+                        scrollState = screen.scrollState,
+                        onBack = navigator::back,
+                        onRetry = { scope.launch { screen.state.load() } },
+                        onSubjectClick = { appearance -> navigator.openSubject(appearance.subjectId, appearance.name) },
+                    )
+                }
             }
         }
     }

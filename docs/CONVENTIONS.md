@@ -7,9 +7,13 @@
 - 学习者已有 Java 基础，采用能够逐步理解和修改的实现。
 - 创建工程前先说明概念；每轮具体执行范围以用户当前请求为准。
 
+## 协作方式
+
+2026-11-03 起，用户决定由助手全程负责开发：默认由助手直接实现、运行验证并更新文档，完成后简要说明改动、设计理由和验证结果。提交、合并和推送仍先征得用户同意。用户要求讲解或亲手练习时，采用下面的结对学习方式。
+
 ## 结对学习方式
 
-默认采用“小步讲解、用户输入、检查验证”的结对方式，除非用户在当前会话中明确要求助手直接实现：
+按用户要求采用的“小步讲解、用户输入、检查验证”方式（BG-003 至 BG-004 初期的默认方式）：
 
 1. 每次只处理一个容易理解和验证的改动，例如一个状态属性、一个事件方法、一个回调或一个测试。
 2. 修改前先从需求出发，讲清数据或事件怎样流动、各文件为什么承担当前职责，以及不这样设计可能产生的耦合或限制；有多种合理方案时说明当前选择及取舍。
@@ -18,7 +22,7 @@
 5. 在形成可验证行为后，由助手运行对应的编译或测试，并区分代码检查、自动测试、程序启动和人工界面检查。
 6. 不一次性生成完整代码文件或连续堆叠大量未解释的改动。必要的练习融入当前功能，不把独立完成课后练习作为继续项目的条件。
 
-如果用户明确要求直接修改或完成某个目标，则按该要求实施和验证；结对方式是默认学习节奏，不限制用户在具体会话中改变协作方式。
+用户可以在任何会话中改变协作方式；以当前会话中的明确要求为准。
 
 ## 起步默认方案
 
@@ -46,17 +50,20 @@
 
 | 位置 | 职责 |
 | --- | --- |
-| `commonMain/.../model/` | 条目等数据模型 |
-| `commonMain/.../data/` | 接口调用和数据转换（当前为 `BangumiApi.kt`） |
-| `commonMain/.../ui/screens/` | 页面布局和事件连接 |
-| `commonMain/.../ui/components/` | 被多个页面使用的界面组件 |
-| `commonMain/.../ui/state/` | 页面状态及操作处理 |
+| `commonMain/.../model/` | 界面使用的数据模型：`Subject`、`SubjectDetail`、角色相关模型 |
+| `commonMain/.../data/` | `BangumiApi.kt` 只负责发请求；`SearchJson.kt`、`SubjectJson.kt`、`CharacterJson.kt` 把各接口的 JSON 转成模型；`BangumiJson.kt` 放共用解析工具 |
+| `commonMain/.../ui/screens/` | 页面布局和事件连接：搜索页、条目详情页、角色详情页 |
+| `commonMain/.../ui/components/` | 被多个页面使用的界面组件和文字格式化函数 |
+| `commonMain/.../ui/state/` | 页面状态、加载状态 `LoadState` 和返回栈 `AppNavigator` |
 | `commonMain/.../ui/theme/` | 统一主题和设计常量 |
 | `desktopMain/` | 桌面程序入口、窗口及平台能力 |
 
-这里的 `...` 表示 `kotlin/dev/bangumi/demo`。`ui/state` 保存输入、搜索结果与选中状态；`commonTest` 保存共享逻辑测试和测试用的示例数据，由当前桌面目标执行。
+这里的 `...` 表示 `kotlin/dev/bangumi/demo`。`commonTest` 保存共享逻辑测试和测试用的示例数据，由当前桌面目标执行。
 
-状态对象通过构造参数接收“怎样搜索”的函数（`suspend (String) -> List<Subject>`），而不是直接创建网络客户端：运行时由桌面入口传入 `BangumiApi` 的方法，测试时传入返回固定结果的 Lambda。只有一种实现时不额外定义接口。
+- 状态对象通过构造参数接收“怎样加载”的函数（例如 `suspend (String) -> List<Subject>`），而不是直接创建网络客户端：运行时由 `App` / `AppNavigator` 传入 `BangumiApi` 的方法，测试时传入返回固定结果的 Lambda。只有一种实现时不额外定义接口。
+- 接口原始结构（DTO）只在各 `*Json.kt` 文件内部使用（`private`），界面只接触 `model` 中的类型。每个解析函数都是不联网的普通函数，用按真实响应精简的 JSON 测试。
+- 页面导航使用 `AppNavigator` 中的返回栈：栈中保存页面对象（含状态和滚动位置），返回时恢复原页面而不重新请求。暂未引入导航库；页面类型或参数明显增多时再评估。
+- 详情页的数据按区块各自加载（`LoadState`：加载中 / 成功 / 失败），一块失败不影响其他区块；“重试”只重新请求未成功的区块。
 
 第一阶段不必预先建立所有目录或接口。需要从示例数据切换到网络数据、替换实现或隔离平台差异时，再引入相应抽象。
 
@@ -68,6 +75,8 @@
 - 所有代码都需要详细注释，说明职责、参数含义、主要处理过程与设计原因；新的 Kotlin 概念用 Java 作必要对照。避免只逐句复述语法。
 - 网络请求写成 `suspend` 函数，由界面通过 `rememberCoroutineScope().launch` 启动，避免阻塞 UI；捕获异常时先单独重新抛出 `CancellationException`，取消操作不误报为请求失败。
 - 访问 Bangumi 接口时必须带项目的 User-Agent（见 `BangumiApi`）；接口返回的原始数据类只在数据层内部使用，界面只接触 `Subject` 等模型。
+- 优先使用 `api.bgm.tv/v0` 官方公开接口。吐槽箱只有 `next.bgm.tv/p1` 非公开接口提供（文档标题为 "bangumi private api"），使用时必须保证它失败或变化只影响对应区块，并在代码注释中标明。
+- 共享代码不能使用 `String.format`、`java.time` 等 JVM 专用 API：数字和百分比格式化用整数运算（见 `Formatting.kt`），当前时间用 Kotlin 标准库的 `kotlin.time.Clock`（Kotlin 2.2 中需 `@OptIn(ExperimentalTime::class)`）。
 - 遵循 `.editorconfig`。引入格式检查工具时，把版本及命令加入构建配置和 README。
 
 ## 界面一致性
@@ -76,12 +85,13 @@
 - 常用颜色、字体、间距、圆角集中维护；页面引用主题或公共常量。
 - 第一个经过确认的演示页面作为后续页面的样式参考，形成基准后在这里记录对应文件和必要截图。
 - 支持键盘操作及清晰的焦点反馈，避免只有颜色才能区分状态。
-- 加载、空结果、错误和重试使用列表页中的 `StatusMessage` 统一排版（居中标题、说明、可选按钮，加载时显示转圈指示器）；新页面需要同类提示时沿用这种表现。
+- 搜索页整页的加载、空结果、错误和重试使用列表页中的 `StatusMessage` 统一排版（居中标题、说明、可选按钮，加载时显示转圈指示器）。
+- 详情页的区块使用 [DetailLayout.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/DetailLayout.kt) 中的部件：`DetailPage`（顶部固定的“← 返回”栏 + 可滚动内容区，边距和最大宽度与搜索页一致）、`DetailSection`（区块标题）、`LoadStateContent`（区块内的加载中 / 失败与重试 / 内容）、`SecondaryText`（来源、统计等次要文字）。新的详情类页面沿用这些部件。
 - 当前演示页为 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)，使用 Material 3 默认浅色主题和统一条目卡片。主题与间距集中在 [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt)。
-- 详情页 [SubjectDetailScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectDetailScreen.kt) 沿用列表页的外边距与最大内容宽度；新页面默认采用同样的外层布局。
-- 评分统一使用 [ScoreLabel.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ScoreLabel.kt)，不在页面中重复“暂无评分”判断。
-- 可点击的卡片在获得键盘焦点时显示主题色描边（宽度为 `AppDimensions.focusBorderWidth`），让焦点不只靠底色深浅区分；新增可点击卡片沿用此做法。
-- 已保存 [首个窗口截图](images/first-window.jpg)、[详情页截图](images/bg-003-detail.jpg)、[卡片焦点截图](images/bg-003-card-focus.jpg)、[搜索结果截图](images/bg-004-search-results.jpg) 和 [搜索失败截图](images/bg-004-search-error.jpg) 供查看；长期品牌色和视觉基准仍待后续反馈确定。
+- 评分统一使用 [ScoreLabel.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ScoreLabel.kt)，不在页面中重复“暂无评分”判断；角色定位、收藏状态、作品类型等小标签统一使用同一文件中的 `TagLabel`。
+- 可点击的卡片统一使用 [ClickableCard.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ClickableCard.kt)：获得键盘焦点时显示主题色描边（宽度为 `AppDimensions.focusBorderWidth`），让焦点不只靠底色深浅区分。
+- 图表除图形外同时写出具体数值（例如评分分布每行都有人数和百分比），不只靠长度或颜色传达信息。
+- 已保存 [首个窗口截图](images/first-window.jpg)、[详情页截图](images/bg-003-detail.jpg)、[卡片焦点截图](images/bg-003-card-focus.jpg)、[搜索结果截图](images/bg-004-search-results.jpg)、[搜索失败截图](images/bg-004-search-error.jpg)、[评分分布截图](images/bg-005-rating.jpg)、[角色与吐槽截图](images/bg-005-characters-comments.jpg) 和 [角色详情截图](images/bg-013-character.jpg) 供查看；长期品牌色和视觉基准仍待后续反馈确定。
 
 ## 验证与版本管理
 
@@ -117,5 +127,9 @@
 2026-11-02（BG-003 界面复用）：评分抽成共用的 `ScoreLabel`，可点击卡片获得焦点时加主题色描边，详情页沿用列表页布局；目的是让列表和详情的显示规则只维护一处，并满足“焦点不只靠颜色区分”的要求。
 
 2026-11-03（BG-004 网络与数据来源）：列表页改为按回车搜索真实 Bangumi 动画（用户决定），示例数据只用于测试。网络与 JSON 选用 Ktor + kotlinx.serialization，版本受 Kotlin 2.2.21 限制；平台引擎放在 `desktopMain`，为将来移动端换引擎保留边界。
+
+2026-11-03（协作方式）：用户决定由助手全程负责开发，默认改为助手直接实现、验证并更新文档；结对学习方式保留，在用户要求时使用。
+
+2026-11-03（BG-005、BG-013 详情与导航）：页面增加到三层（搜索 → 条目 → 角色，角色还能跳回其他条目），采用自写的返回栈 `AppNavigator` 保存页面对象，而不是引入导航库；详情数据按区块用 `LoadState` 独立加载。吐槽只能使用非公开的 p1 接口，按“可失败的独立区块”处理。
 
 后续仅记录会影响未来开发的决定、原因和适用范围，不把每次改动写成长期规范。

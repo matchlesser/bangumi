@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -37,6 +38,7 @@ import dev.bangumi.demo.ui.theme.AppDimensions
  * @param query 输入框原文。
  * @param isLoading 是否正在等待网络响应。
  * @param errorMessage 最近一次搜索失败的原因；null 表示没有错误。
+ * @param listState 结果列表的滚动位置；由调用方保存，从详情页返回时仍停在原来的位置。
  * @param onSearch 用户按回车、点击“搜索”或“重试”时调用。
  */
 @Composable
@@ -45,6 +47,7 @@ fun SubjectListScreen(
     query: String,
     isLoading: Boolean,
     errorMessage: String?,
+    listState: LazyListState,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onClearQuery: () -> Unit,
@@ -160,6 +163,7 @@ fun SubjectListScreen(
                     // LazyColumn 按需绘制可见条目，结果较多时可以滚动。
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().weight(1f),
+                        state = listState,
                         verticalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
                         contentPadding = PaddingValues(bottom = AppDimensions.smallSpacing),
                     ) {

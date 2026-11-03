@@ -6,11 +6,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 测试 JSON 到 Subject 的转换规则，不联网。
+ * 测试搜索结果 JSON 到 Subject 的转换规则，不联网。
  * 样例按 2026-11-03 实际请求 Bangumi 搜索“孤独摇滚”的返回结构精简而来，保留了 tags、images 等用不到的字段，
  * 用来确认这些多余字段会被忽略而不是导致解析失败。
  */
-class BangumiApiTest {
+class SearchJsonTest {
 
     @Test
     fun usesChineseNameScoreAndSummaryAndIgnoresExtraFields() {

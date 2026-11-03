@@ -4,9 +4,9 @@
 
 ## 当前停点
 
-最近完成的功能目标是 `BG-004 真实 Bangumi 搜索`：输入作品名称后按回车或点击“搜索”，从 Bangumi 获取真实动画条目，显示加载、空结果、错误与重试；卡片与详情页沿用 BG-003。本轮由用户要求助手直接实现。
+最近完成的功能目标是 `BG-005 真实 Bangumi 详情` 与 `BG-013 角色详情`：条目详情显示评分分布、主要人物和吐槽，点击角色进入角色详情（资料、声优、出演作品），出演作品可再跳转到对应条目；页面之间通过返回栈逐层返回。
 
-BG-004 已作为一个带目标编号的提交保存在 Git 中。用户反馈 BG-003 起代码抽象较多、不易读懂，下一步建议先做一次 BG-004 回顾，再开始新目标，详见“下次接续”。编号和命名规则见 [项目约定](CONVENTIONS.md)。
+2026-11-03 起用户决定由助手全程负责开发（见 [项目约定](CONVENTIONS.md#协作方式)）。BG-005 与 BG-013 已作为一个带目标编号的提交保存在 Git 中并推送到 GitHub。下一步候选见“下次接续”；编号和命名规则见 [项目约定](CONVENTIONS.md)。
 
 ## 目标索引
 
@@ -19,16 +19,17 @@ BG-004 已作为一个带目标编号的提交保存在 Git 中。用户反馈 B
 | BG-002 | 关键词筛选与空状态 | 已完成 | 按名称筛选、清空恢复、无匹配提示；9 个测试及桌面操作验证通过。BG-004 起离线筛选被真实搜索取代 |
 | BG-003 | 示例条目详情 | 已完成 | 点击卡片查看名称、评分和完整简介，返回列表保留筛选；10 个测试及鼠标、键盘操作验证通过 |
 | BG-004 | 真实 Bangumi 搜索 | 已完成 | 按回车或点击搜索获取真实动画条目，处理加载、空结果、错误与重试；14 个测试及真实搜索、错误显示验证通过 |
-| BG-005 | 真实 Bangumi 详情 | 候选 | 根据真实条目获取详情，处理字段缺失和请求失败 |
+| BG-005 | 真实 Bangumi 详情 | 已完成 | 条目详情显示评分分布、排名与收藏统计、主要人物、最新吐槽；各区块独立加载与重试；真实条目验证通过 |
 | BG-006 | 本地保存 | 候选 | 按需求选择本地标记或设置保存，重启后仍能读取，明确仅保存在本机 |
 | BG-007 | Windows 安装包 | 候选 | 确定打包方式，验证安装与启动 |
-| BG-008 | Git 版本管理 | 进行中 | 仓库已初始化并关联 GitHub 远程仓库；首个提交（2026-09-20）包含 BG-002 为止的内容，之后每个目标单独提交，提交说明以目标编号开头。分支、合并与推送方式待约定 |
+| BG-008 | Git 版本管理 | 进行中 | 仓库已初始化并关联 GitHub 远程仓库；首个提交（2026-09-20）包含 BG-002 为止的内容，之后每个目标在独立分支单独提交，提交说明以目标编号开头，经用户同意后快进合并到 main 并推送 |
 | BG-009 | 代码格式检查 | 候选 | 按需要选定工具并固定版本，提供可执行的格式检查命令 |
 | BG-010 | 账户登录 | 候选 | 确认认证方式与具体范围后实现登录流程 |
 | BG-011 | 账户同步 | 候选 | 在登录基础上细化同步范围，明确本地数据与账户数据的关系 |
 | BG-012 | 移动端适配 | 候选 | 桌面流程稳定后确定首个平台，并拆成可验证的小目标 |
+| BG-013 | 角色详情 | 已完成 | 从条目页点击角色查看资料、简介、声优和出演作品，出演作品可跳转条目；返回栈保留页面数据和滚动位置 |
 
-自动测试随需要验证逻辑的目标一起加入；当前共有 14 个测试：4 个覆盖 JSON 到 `Subject` 的转换，10 个覆盖搜索状态（含 BG-003 的选择与返回）。BG-002 的 9 个筛选测试随离线筛选一起移除。
+自动测试随需要验证逻辑的目标一起加入；当前共有 31 个测试，都不联网：搜索、条目、角色三类 JSON 转换 13 个，搜索状态 9 个，详情状态 4 个，返回栈 2 个，文字格式化 3 个。
 
 ## BG-000 项目准备与协作规范
 
@@ -100,7 +101,7 @@ BG-004 已作为一个带目标编号的提交保存在 Git 中。用户反馈 B
 
 - 接口（2026-11-03 核对）：`POST https://api.bgm.tv/v0/search/subjects`，请求体 `{"keyword": ..., "filter": {"type": [2]}}` 只搜动画，每次最多 20 条；官方标注为实验性 API。按 Bangumi 要求设置 User-Agent `matchlesser/bangumi (https://github.com/matchlesser/bangumi)`。
 - 依赖：Ktor 3.3.3（`ktor-client-core` 在 `commonMain`，CIO 引擎在 `desktopMain`）、kotlinx-serialization-json 1.9.0 与对应插件、kotlinx-coroutines 1.10.2；测试使用 kotlinx-coroutines-test 1.10.2。选择理由见 [项目约定](CONVENTIONS.md)。
-- 数据层：[BangumiApi.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/BangumiApi.kt) 发送请求并取回文字，`parseSearchResponse` 转成 `Subject`：优先中文名、评分为 0 或缺失时为 null、简介缺失时为空字符串，忽略用不到的字段。
+- 数据层：[BangumiApi.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/BangumiApi.kt) 发送请求并取回文字，`parseSearchResponse` 转成 `Subject`：优先中文名、评分为 0 或缺失时为 null、简介缺失时为空字符串，忽略用不到的字段。（BG-005 起解析函数移到 `SearchJson.kt`，对应测试改名为 `SearchJsonTest`。）
 - 状态层：`SubjectListState` 接收一个 `suspend (String) -> List<Subject>` 搜索函数；`search()` 管理 `isLoading`、`results`（null 表示未搜索）、`errorMessage`，取消不算失败；失败后再次搜索即重试。
 - 界面：`App` 用 `rememberCoroutineScope().launch` 启动搜索；列表页改为搜索栏（回车或“搜索”按钮），结果区用统一的提示样式显示未搜索、加载中、失败与重试、无结果；卡片和详情页处理无简介，并把示例说明改为数据来源说明。
 - 清理：移除离线筛选函数及其 9 个测试；示例数据移到 `commonTest`，作为状态测试中的假搜索结果；更新 FIRST_STEPS、BG-002 与学习笔记中的历史说明和链接。
@@ -115,11 +116,41 @@ BG-004 已作为一个带目标编号的提交保存在 Git 中。用户反馈 B
 - 错误与重试：临时把接口地址改为不存在的域名运行，约 10 秒后显示“搜索失败”和原因 `UnresolvedAddressException`，点击“重试”重新进入加载（[截图](images/bg-004-search-error.jpg)）；检查后已恢复正式地址并重新构建、测试。
 - 验证边界：没有真实断网测试；结果最多 20 条，没有分页；接口为实验性 API，字段可能变化。未验证不同显示缩放、极小窗口或其他平台。
 
+## BG-005 真实 Bangumi 详情 与 BG-013 角色详情
+
+两个目标在同一轮实现（用户要求：详情中加入评分分布、评论、主要人物，点击人物可看人物详情）。
+
+### 完成内容
+
+- 接口（2026-11-03 核对并实际请求）：
+  - 条目：`GET /v0/subjects/{id}`（评分分布 `rating.count`、排名、放送信息、收藏人数）、`GET /v0/subjects/{id}/characters`（角色、定位、声优）。
+  - 角色：`GET /v0/characters/{id}`（资料表 infobox、简介、收藏数）、`/subjects`（出演作品）、`/persons`（声优）。
+  - 吐槽：官方 v0 没有评论接口，使用 Bangumi 新前端的非公开接口 `GET https://next.bgm.tv/p1/subjects/{id}/comments?limit=20`（其文档标题为 "bangumi private api"，可能随时变化），失败时只影响吐槽区块。
+- 数据层：`BangumiApi.kt` 只负责发请求；JSON 转换按主题拆到 `SearchJson.kt`、`SubjectJson.kt`、`CharacterJson.kt`，共用工具在 `BangumiJson.kt`。角色按“主角 → 配角 → 其他”排序；infobox 的字符串和列表两种值统一转成文字；评分、排名为 0 视为没有。
+- 模型：新增 `SubjectDetail`、`SubjectCollection`、`SubjectComment(s)`、`CharacterSummary`、`CharacterDetail`、`ProfileEntry`、`CharacterAppearance`。
+- 状态层：`LoadState`（加载中 / 成功 / 失败）；`SubjectDetailState` 与 `CharacterDetailState` 各有三块数据并行加载，重试只请求未成功的块，取消不算失败。`AppNavigator` 用返回栈保存页面对象（含滚动位置），替代原来 `SubjectListState` 中的选中条目。
+- 界面：
+  - 条目详情：标题与原名、评分 / 排名 / 评分人数、平台 · 日期 · 话数、收藏统计；10 档评分分布横条图（每行写出人数和百分比）；简介；主要人物两列卡片（默认主角和配角，可展开全部）；吐槽列表（用户、收藏状态、打分、相对时间）。
+  - 角色详情：中文名与原名、收藏与吐槽数、基本资料表、简介、声优、出演作品（可点击打开对应条目）。
+  - 共用部件：`ClickableCard`（焦点描边）、`TagLabel`、`DetailPage`（顶部固定返回栏）、`DetailSection`、`LoadStateContent`、`RatingDistribution`；格式化函数 `formatCount`、`formatPercent`、`formatRelativeTime`。
+  - 搜索结果列表的滚动位置保存在 `App` 中，从详情返回后不再回到顶部；新的搜索结果自动回到顶部。窗口标题改为“Bangumi”。
+
+### 2026-11-03 验证结果
+
+- 构建：执行 `.\gradlew.bat :composeApp:assemble :composeApp:check --console=plain`，`BUILD SUCCESSFUL`，无编译警告。
+- 自动测试：`desktopTest` 运行 31 个测试，0 失败、0 错误。新增 `SubjectJsonTest` 5 个、`CharacterJsonTest` 4 个（用按真实响应精简的 JSON）、`DetailStateTest` 4 个（全部成功、单块失败与只重试失败块、取消后保持加载中并在下次补上、角色页独立加载）、`AppNavigatorTest` 2 个、`FormattingTest` 3 个。
+- 真实界面操作（`.\gradlew.bat :composeApp:run`）：搜索“孤独摇滚”→ 打开第一条，显示 `8.4 / 10`、排名 #73、41,530 人评分、`TV · 2022-10-08 · 12 话`、收藏统计与评分分布（8 分 14,390 人，34.6%）（[截图](images/bg-005-rating.jpg)）；主要人物 16 位两列显示并有“显示全部 33 位角色”；吐槽显示“共 9,186 条，显示最新 20 条”及用户、状态、打分、相对时间（[截图](images/bg-005-characters-comments.jpg)）。点击“後藤ひとり”进入角色详情，显示“后藤一里”、资料表（别名、性别、生日、血型、身高、体重）、简介、声优“青山吉能、阎么么、邱涵菲、郭雅瑂”和 13 部出演作品（[截图](images/bg-013-character.jpg)）。点击出演作品“女孩的钓鱼慢活”打开该条目详情（6.8 分，#3710）；返回后角色页保持原滚动位置且不重新加载。
+- 返回栏固定：上述操作后发现长页面中“← 返回”会随内容滚走，改为顶部固定返回栏。修改后真实窗口因 Windows 不再把键盘焦点交给程序而无法输入搜索词，改用临时测试把详情页渲染成图片检查（滚动 1200 像素后返回栏仍在顶部），检查后删除临时测试。三张截图摄于返回栏固定之前。
+- 验证边界：修改返回栏后没有在真实窗口中重新走完整流程；没有测试真实的吐槽接口失败（区块失败逻辑由状态测试覆盖）；没有 Esc 等返回快捷键；没有图片（封面、头像）；吐槽只取最新 20 条，没有分页。未验证不同显示缩放、极小窗口或其他平台。
+
 ## 下次接续
 
-建议先进行 `BG-004 回顾`（对话标题：`BG-004 回顾：真实搜索`），不新增功能：沿着“按回车 → `App` 启动协程 → `SubjectListState.search()` → `BangumiApi.searchSubjects()` → `parseSearchResponse()` → 列表重组”这条路径逐个文件讲解 `suspend`、协程、`@Serializable` 和状态变化，并让用户做一个小改动（例如调整每次返回的条数）。
+候选方向（尚未排定，由助手按用户意见选择）：
 
-之后的候选方向（尚未排定）：`BG-005 真实 Bangumi 详情`（用条目编号请求详情接口，显示更多字段）、在搜索结果中显示封面图片、分页加载更多结果。新功能默认回到结对方式，每步只引入一个新概念。
+- 封面与角色头像：接口已提供图片地址，需要选定图片加载方式（例如自行用 Ktor 下载并解码，或引入兼容 Kotlin 2.2 的图片库）。
+- 分页：搜索结果“加载更多”、吐槽“加载更多”。
+- 返回快捷键：Esc 或鼠标侧键返回上一页（需要在 `desktopMain` 的窗口上处理按键）。
+- 在真实窗口中复查固定返回栏后的完整流程。
 
 ## 交接注意
 

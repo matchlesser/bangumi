@@ -1,19 +1,13 @@
 package dev.bangumi.demo.ui.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,23 +28,10 @@ fun SubjectCard(
     subject: Subject,
     onClick: () -> Unit,
 ) {
-    // interactionSource 记录卡片的交互（按下、悬停、获得焦点等）；remember 让它在重组之间保持同一个对象。
-    // collectIsFocusedAsState 把“是否有键盘焦点”转换成可观察状态，焦点变化时卡片会重组。
-    // 类比 Java Swing：给控件注册 FocusListener，在 focusGained/focusLost 里切换边框。
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-
-    // 带 onClick 的 Card 可被鼠标点击，也能用 Tab 获得焦点后按 Enter 触发。
-    // 默认焦点反馈只是底色略深，不够明显；获得焦点时再加一圈主题色描边，没有焦点时不画边框（null）。
-    Card(
+    // 可点击与焦点描边由 ClickableCard 统一处理。
+    ClickableCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        border = if (isFocused) {
-            BorderStroke(AppDimensions.focusBorderWidth, MaterialTheme.colorScheme.primary)
-        } else {
-            null
-        },
-        interactionSource = interactionSource,
     ) {
         // 垂直布局：标题行 + 简介文本
         Column(
