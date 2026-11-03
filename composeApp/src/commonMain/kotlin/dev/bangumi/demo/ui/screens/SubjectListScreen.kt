@@ -27,33 +27,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import dev.bangumi.demo.model.Subject
+import dev.bangumi.demo.ui.components.LoadMoreFooter
 import dev.bangumi.demo.ui.components.SubjectCard
+import dev.bangumi.demo.ui.components.formatCount
+import dev.bangumi.demo.ui.state.SubjectListState
 import dev.bangumi.demo.ui.theme.AppDimensions
 
 /**
- * 只根据传入数据绘制页面，把用户操作通过回调交给状态对象；页面本身不发网络请求。
+ * 搜索页：只读取 state 中的数据绘制页面，把用户操作通过回调上报；页面本身不发网络请求。
  * (String) -> Unit 类似 Java Consumer<String>，() -> Unit 类似 Runnable；Unit 表示不返回有用值。
  *
- * @param subjects 搜索结果；null 表示还没有搜索过。
- * @param query 输入框原文。
- * @param isLoading 是否正在等待网络响应。
- * @param errorMessage 最近一次搜索失败的原因；null 表示没有错误。
+ * @param state 搜索状态：输入框文字、结果、加载与错误情况。
  * @param listState 结果列表的滚动位置；由调用方保存，从详情页返回时仍停在原来的位置。
  * @param onSearch 用户按回车、点击“搜索”或“重试”时调用。
+ * @param onLoadMore 点击列表底部的“加载更多”或其“重试”时调用。
+ * @param onSubjectClick 点击条目时调用，传入被点击的条目；类似 Java 的 Consumer<Subject>，页面切换由调用方决定。
  */
 @Composable
 fun SubjectListScreen(
-    subjects: List<Subject>?,
-    query: String,
-    isLoading: Boolean,
-    errorMessage: String?,
+    state: SubjectListState,
     listState: LazyListState,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
+    onLoadMore: () -> Unit,
     onClearQuery: () -> Unit,
-    // 点击条目时的回调，传入被点击的条目；类似 Java 的 Consumer<Subject>，页面切换由调用方决定。
     onSubjectClick: (Subject) -> Unit,
 ) {
+    // 先取出本次绘制要用的值。局部 val 只读一次，下面判空后编译器能自动当作非空使用（智能转换）。
+    val results = state.results
+    val subjects = results?.items
+    val query = state.query
+    val isLoading = state.isLoading
+    val errorMessage = state.errorMessage
+
     // Box 负责水平居中；内层 Column 限制内容宽度，并从上到下排列标题、搜索栏和结果区。
     Box(
         modifier = Modifier.fillMaxSize().padding(AppDimensions.largeSpacing),
@@ -136,13 +142,13 @@ fun SubjectListScreen(
                     onAction = onSearch,
                 )
 
-                subjects == null -> StatusMessage(
+                results == null || subjects == null -> StatusMessage(
                     title = "输入作品名称开始搜索",
                     detail = "按回车或点击“搜索”，结果来自 Bangumi。",
                     modifier = contentModifier,
                 )
 
-                // 前一个分支已排除 null，编译器在这里自动把 subjects 当作非空列表（智能转换）。
+                // 前一个分支已排除 null，编译器在这里自动把 results 和 subjects 当作非空（智能转换）。
                 subjects.isEmpty() -> StatusMessage(
                     title = "没有找到匹配的番剧",
                     detail = "换个关键词试试，或清空后重新输入。",
@@ -155,9 +161,9 @@ fun SubjectListScreen(
                     modifier = contentModifier,
                     verticalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
                 ) {
-                    // 每次最多请求 20 条（见 BangumiApi），这里显示实际返回的数量。
+                    // 总数来自服务器；每次请求 20 条，更多结果通过列表底部的“加载更多”取得。
                     Text(
-                        text = "显示 ${subjects.size} 部作品",
+                        text = "共找到 ${formatCount(results.total)} 部作品",
                         style = MaterialTheme.typography.titleMedium,
                     )
                     // LazyColumn 按需绘制可见条目，结果较多时可以滚动。
@@ -174,6 +180,17 @@ fun SubjectListScreen(
                             SubjectCard(
                                 subject = subject,
                                 onClick = { onSubjectClick(subject) },
+                            )
+                        }
+                        // item { } 在列表末尾追加一行非条目内容：加载更多 / 加载中 / 重试 / 已全部显示。
+                        item(key = "load-more") {
+                            LoadMoreFooter(
+                                shown = subjects.size,
+                                total = results.total,
+                                unit = "部",
+                                isLoading = state.isLoadingMore,
+                                error = state.loadMoreError,
+                                onLoadMore = onLoadMore,
                             )
                         }
                     }

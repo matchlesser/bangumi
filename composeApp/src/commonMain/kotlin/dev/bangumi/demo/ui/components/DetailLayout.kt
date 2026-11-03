@@ -49,7 +49,7 @@ fun DetailPage(
         ) {
             Box(modifier = Modifier.widthIn(max = AppDimensions.contentMaxWidth).fillMaxWidth()) {
                 TextButton(onClick = onBack) {
-                    Text("← 返回")
+                    Text("← 返回（Esc）")
                 }
             }
         }

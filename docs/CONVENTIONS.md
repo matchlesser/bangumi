@@ -63,8 +63,10 @@
 
 - 状态对象通过构造参数接收“怎样加载”的函数（例如 `suspend (String) -> List<Subject>`），而不是直接创建网络客户端：运行时由 `App` / `AppNavigator` 传入 `BangumiApi` 的方法，测试时传入返回固定结果的 Lambda。只有一种实现时不额外定义接口。
 - 接口原始结构（DTO）只在各 `*Json.kt` 文件内部使用（`private`），界面只接触 `model` 中的类型。每个解析函数都是不联网的普通函数，用按真实响应精简的 JSON 测试。
-- 页面导航使用 `AppNavigator` 中的返回栈：栈中保存页面对象（含状态和滚动位置），返回时恢复原页面而不重新请求。暂未引入导航库；页面类型或参数明显增多时再评估。
+- 页面导航使用 `AppNavigator` 中的返回栈：栈中保存页面对象（含状态和滚动位置），返回时恢复原页面而不重新请求。导航器在桌面入口 `Main.kt` 创建，供窗口级快捷键（Esc 返回）和 `App` 共用。暂未引入导航库；页面类型或参数明显增多时再评估。
 - 详情页的数据按区块各自加载（`LoadState`：加载中 / 成功 / 失败），一块失败不影响其他区块；“重试”只重新请求未成功的区块。
+- 分页数据统一用 `Page<T>`（已取得的条目 + 总数），每页 20 条；拼接下一页用 `Page.appended` 并按 id 去重。“加载更多”失败时保留已显示内容，只在列表底部提示重试；等待期间重新搜索或清空时丢弃过期的一页。
+- 快捷键的判断逻辑放在 `commonMain`（例如 `handleBackShortcut`），只在 `desktopMain` 中接到窗口事件上；测试时传入 `Key`、`KeyEventType` 常量，不使用 Compose 构造按键事件的内部 API。
 
 第一阶段不必预先建立所有目录或接口。需要从示例数据切换到网络数据、替换实现或隔离平台差异时，再引入相应抽象。
 
@@ -87,6 +89,8 @@
 - 第一个经过确认的演示页面作为后续页面的样式参考，形成基准后在这里记录对应文件和必要截图。
 - 支持键盘操作及清晰的焦点反馈，避免只有颜色才能区分状态。
 - 搜索页整页的加载、空结果、错误和重试使用列表页中的 `StatusMessage` 统一排版（居中标题、说明、可选按钮，加载时显示转圈指示器）。
+- 分页列表的末尾统一使用 [LoadMoreFooter.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/LoadMoreFooter.kt)：“加载更多（已显示 n / 共 m）”按钮、加载中、失败与重试、已显示全部。用按钮而不是滚动到底自动加载，请求由用户明确触发，也便于键盘操作。
+- 详情页的返回按钮写明快捷键“← 返回（Esc）”；按 Esc 返回上一页，在搜索页不处理。
 - 详情页的区块使用 [DetailLayout.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/DetailLayout.kt) 中的部件：`DetailPage`（顶部固定的“← 返回”栏 + 可滚动内容区，边距和最大宽度与搜索页一致）、`DetailSection`（区块标题）、`LoadStateContent`（区块内的加载中 / 失败与重试 / 内容）、`SecondaryText`（来源、统计等次要文字）。新的详情类页面沿用这些部件。
 - 当前演示页为 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)，使用 Material 3 默认浅色主题和统一条目卡片。主题与间距集中在 [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt)。
 - 评分统一使用 [ScoreLabel.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ScoreLabel.kt)，不在页面中重复“暂无评分”判断；角色定位、收藏状态、作品类型等小标签统一使用同一文件中的 `TagLabel`。
@@ -133,5 +137,7 @@
 2026-11-03（协作方式）：用户决定由助手全程负责开发，默认改为助手直接实现、验证并更新文档；结对学习方式保留，在用户要求时使用。
 
 2026-11-03（BG-005、BG-013 详情与导航）：页面增加到三层（搜索 → 条目 → 角色，角色还能跳回其他条目），采用自写的返回栈 `AppNavigator` 保存页面对象，而不是引入导航库；详情数据按区块用 `LoadState` 独立加载。吐槽只能使用非公开的 p1 接口，按“可失败的独立区块”处理。
+
+2026-11-03（BG-015、BG-016 分页与快捷键）：分页用“加载更多”按钮而不是无限滚动；Esc 返回在窗口级处理，使其不依赖页面焦点，导航器因此上移到桌面入口创建。
 
 后续仅记录会影响未来开发的决定、原因和适用范围，不把每次改动写成长期规范。

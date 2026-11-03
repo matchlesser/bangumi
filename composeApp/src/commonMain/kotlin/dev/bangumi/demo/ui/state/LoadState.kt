@@ -25,6 +25,12 @@ suspend fun <T> loadState(block: suspend () -> T): LoadState<T> =
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        // 有些网络异常（例如域名无法解析）没有文字说明，这时显示异常类型名，方便判断原因。
-        LoadState.Error(e.message ?: e::class.simpleName ?: "未知错误")
+        LoadState.Error(errorMessageOf(e))
     }
+
+/**
+ * 把异常转成显示给用户的原因文字。
+ * 有些网络异常（例如域名无法解析）没有文字说明，这时显示异常类型名，方便判断原因。
+ * ?: 是 Elvis 运算符：左边为 null 时取右边，类似 Java 的 x != null ? x : y。
+ */
+fun errorMessageOf(e: Exception): String = e.message ?: e::class.simpleName ?: "未知错误"

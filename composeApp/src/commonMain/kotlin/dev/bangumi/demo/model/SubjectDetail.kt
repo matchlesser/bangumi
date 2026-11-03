@@ -57,9 +57,3 @@ data class SubjectComment(
     val updatedAt: Long,
     val avatarUrl: String? = null,
 )
-
-/** 一页吐槽：total 是全部吐槽数量，items 是本次取回的最新若干条。 */
-data class SubjectComments(
-    val total: Int,
-    val items: List<SubjectComment>,
-)

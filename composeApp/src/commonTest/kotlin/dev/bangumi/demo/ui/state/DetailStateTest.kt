@@ -5,7 +5,7 @@ import dev.bangumi.demo.model.CharacterDetail
 import dev.bangumi.demo.model.CharacterSummary
 import dev.bangumi.demo.model.SubjectCollection
 import dev.bangumi.demo.model.SubjectComment
-import dev.bangumi.demo.model.SubjectComments
+import dev.bangumi.demo.model.Page
 import dev.bangumi.demo.model.SubjectDetail
 import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.cancellation.CancellationException
@@ -33,7 +33,7 @@ class DetailStateTest {
         collection = SubjectCollection(wish = 1, collect = 2, doing = 3, onHold = 4, dropped = 5),
     )
     private val characters = listOf(CharacterSummary(id = 87968, name = "後藤ひとり", relation = "主角", voiceActor = "青山吉能"))
-    private val comments = SubjectComments(
+    private val comments = Page(
         total = 1,
         items = listOf(SubjectComment(id = 1, userName = "用户", status = "看过", rate = 9, text = "好看", updatedAt = 0)),
     )
@@ -45,7 +45,7 @@ class DetailStateTest {
             title = "孤独摇滚！",
             loadSubject = { id -> assertEquals(328609, id); detail },
             loadCharacters = { characters },
-            loadComments = { comments },
+            loadComments = { _, _ -> comments },
         )
         assertEquals(LoadState.Loading, state.detail)
 
@@ -66,7 +66,7 @@ class DetailStateTest {
             title = "标题",
             loadSubject = { subjectCalls++; detail },
             loadCharacters = { characters },
-            loadComments = {
+            loadComments = { _, _ ->
                 commentCalls++
                 if (commentCalls == 1) throw IllegalStateException("Bangumi 返回 HTTP 502")
                 comments
@@ -98,7 +98,7 @@ class DetailStateTest {
                 if (cancelFirst) throw CancellationException("离开页面")
                 characters
             },
-            loadComments = { comments },
+            loadComments = { _, _ -> comments },
         )
 
         state.load()
@@ -138,5 +138,69 @@ class DetailStateTest {
         assertEquals(LoadState.Success(character), state.detail)
         assertEquals(LoadState.Success(appearances), state.appearances)
         assertEquals(LoadState.Error("UnsupportedOperationException"), state.voiceActors)
+    }
+
+    /** 生成编号从 from 开始的 count 条假吐槽。 */
+    private fun commentPage(from: Int, count: Int, total: Int) = Page(
+        items = (from until from + count).map {
+            SubjectComment(
+                id = it.toLong(),
+                userName = "用户$it",
+                status = "看过",
+                rate = null,
+                text = "吐槽$it",
+                updatedAt = 0,
+            )
+        },
+        total = total,
+    )
+
+    // 吐槽加载更多：以已显示条数为 offset 请求下一页并拼接；全部取完后不再请求。
+    @Test
+    fun loadMoreCommentsAppendsNextPage() = runTest {
+        val offsets = mutableListOf<Int>()
+        val state = SubjectDetailState(
+            subjectId = 1,
+            title = "标题",
+            loadSubject = { detail },
+            loadCharacters = { characters },
+            loadComments = { _, offset -> offsets += offset; commentPage(from = offset, count = 20, total = 40) },
+        )
+        state.load()
+
+        state.loadMoreComments()
+        state.loadMoreComments()
+
+        assertEquals(listOf(0, 20), offsets)
+        val loaded = (state.comments as LoadState.Success).data
+        assertEquals((0L until 40L).toList(), loaded.items.map { it.id })
+    }
+
+    // 下一页吐槽加载失败：已显示的吐槽保留，只记录 moreCommentsError；重试成功后清除。
+    @Test
+    fun loadMoreCommentsFailureKeepsShownCommentsAndCanRetry() = runTest {
+        var failNextPage = true
+        val state = SubjectDetailState(
+            subjectId = 1,
+            title = "标题",
+            loadSubject = { detail },
+            loadCharacters = { characters },
+            loadComments = { _, offset ->
+                if (offset > 0 && failNextPage) throw IllegalStateException("Bangumi 返回 HTTP 502")
+                commentPage(from = offset, count = 20, total = 40)
+            },
+        )
+        state.load()
+
+        state.loadMoreComments()
+
+        assertEquals("Bangumi 返回 HTTP 502", state.moreCommentsError)
+        assertEquals(20, (state.comments as LoadState.Success).data.items.size)
+
+        failNextPage = false
+        state.loadMoreComments()
+
+        assertEquals(null, state.moreCommentsError)
+        assertEquals(40, (state.comments as LoadState.Success).data.items.size)
     }
 }

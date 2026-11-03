@@ -25,11 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.bangumi.demo.model.CharacterSummary
-import dev.bangumi.demo.model.SubjectComments
+import dev.bangumi.demo.model.Page
+import dev.bangumi.demo.model.SubjectComment
 import dev.bangumi.demo.model.SubjectDetail
 import dev.bangumi.demo.ui.components.ClickableCard
 import dev.bangumi.demo.ui.components.DetailPage
 import dev.bangumi.demo.ui.components.DetailSection
+import dev.bangumi.demo.ui.components.LoadMoreFooter
 import dev.bangumi.demo.ui.components.LoadStateContent
 import dev.bangumi.demo.ui.components.RatingDistribution
 import dev.bangumi.demo.ui.components.RemoteImage
@@ -51,6 +53,7 @@ import dev.bangumi.demo.ui.theme.AppDimensions
  *
  * @param scrollState 滚动位置，由返回栈中的页面对象保存。
  * @param onRetry 某一块加载失败后点“重试”时调用；只会重新请求失败的部分。
+ * @param onLoadMoreComments 点击吐槽底部的“加载更多”或其“重试”时调用。
  * @param onCharacterClick 点击角色卡片时调用，打开角色详情。
  */
 @Composable
@@ -59,6 +62,7 @@ fun SubjectDetailScreen(
     scrollState: ScrollState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onLoadMoreComments: () -> Unit,
     onCharacterClick: (CharacterSummary) -> Unit,
 ) {
     DetailPage(scrollState = scrollState, onBack = onBack) {
@@ -118,6 +122,16 @@ fun SubjectDetailScreen(
         DetailSection(title = "吐槽") {
             LoadStateContent(state = state.comments, onRetry = onRetry) { comments ->
                 CommentList(comments = comments)
+                if (comments.items.isNotEmpty()) {
+                    LoadMoreFooter(
+                        shown = comments.items.size,
+                        total = comments.total,
+                        unit = "条",
+                        isLoading = state.isLoadingMoreComments,
+                        error = state.moreCommentsError,
+                        onLoadMore = onLoadMoreComments,
+                    )
+                }
             }
         }
     }
@@ -243,9 +257,9 @@ private fun CharacterCard(
     }
 }
 
-/** 最新吐槽：用户、收藏状态、打分、相对时间和内容。 */
+/** 吐槽列表（按时间从新到旧）：用户、收藏状态、打分、相对时间和内容。 */
 @Composable
-private fun CommentList(comments: SubjectComments) {
+private fun CommentList(comments: Page<SubjectComment>) {
     if (comments.items.isEmpty()) {
         SecondaryText("还没有人吐槽。")
         return
@@ -254,7 +268,7 @@ private fun CommentList(comments: SubjectComments) {
     val now = remember { currentEpochSeconds() }
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
-        SecondaryText("共 ${formatCount(comments.total)} 条，显示最新 ${comments.items.size} 条。")
+        SecondaryText("共 ${formatCount(comments.total)} 条，按时间从新到旧排列。")
         comments.items.forEach { comment ->
             HorizontalDivider()
             Column(

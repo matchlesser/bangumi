@@ -3,7 +3,7 @@ package dev.bangumi.demo.data
 import dev.bangumi.demo.model.CharacterSummary
 import dev.bangumi.demo.model.SubjectCollection
 import dev.bangumi.demo.model.SubjectComment
-import dev.bangumi.demo.model.SubjectComments
+import dev.bangumi.demo.model.Page
 import dev.bangumi.demo.model.SubjectDetail
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -77,9 +77,9 @@ fun parseSubjectCharacters(text: String): List<CharacterSummary> {
  * 注意：这是 Bangumi 新前端使用的非公开接口（文档标题为 "bangumi private api"），可能随时变化；
  * 解析失败时只影响吐槽区域，详情页其他部分照常显示。
  */
-fun parseSubjectComments(text: String): SubjectComments {
+fun parseSubjectComments(text: String): Page<SubjectComment> {
     val dto = bangumiJson.decodeFromString(CommentsDto.serializer(), text)
-    return SubjectComments(
+    return Page(
         total = dto.total,
         items = dto.data.map { item ->
             SubjectComment(

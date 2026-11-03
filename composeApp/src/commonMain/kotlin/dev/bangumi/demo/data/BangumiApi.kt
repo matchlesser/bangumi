@@ -3,8 +3,9 @@ package dev.bangumi.demo.data
 import dev.bangumi.demo.model.CharacterAppearance
 import dev.bangumi.demo.model.CharacterDetail
 import dev.bangumi.demo.model.CharacterSummary
+import dev.bangumi.demo.model.Page
 import dev.bangumi.demo.model.Subject
-import dev.bangumi.demo.model.SubjectComments
+import dev.bangumi.demo.model.SubjectComment
 import dev.bangumi.demo.model.SubjectDetail
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -33,10 +34,14 @@ import io.ktor.http.isSuccess
  */
 class BangumiApi(private val client: HttpClient = HttpClient()) {
 
-    /** 按关键词搜索动画，最多返回 [SEARCH_LIMIT] 条。 */
-    suspend fun searchSubjects(keyword: String): List<Subject> {
+    /**
+     * 按关键词搜索动画，返回从第 offset 条开始的一页（最多 [PAGE_SIZE] 条）以及匹配总数。
+     * offset 默认为 0，即第一页；“加载更多”时传入已取得的条数。
+     */
+    suspend fun searchSubjects(keyword: String, offset: Int = 0): Page<Subject> {
         val response = client.post("$API_HOST/v0/search/subjects") {
-            parameter("limit", SEARCH_LIMIT)
+            parameter("limit", PAGE_SIZE)
+            parameter("offset", offset)
             header(HttpHeaders.UserAgent, BANGUMI_USER_AGENT)
             contentType(ContentType.Application.Json)
             setBody(searchRequestJson(keyword))
@@ -52,9 +57,9 @@ class BangumiApi(private val client: HttpClient = HttpClient()) {
     suspend fun getSubjectCharacters(subjectId: Int): List<CharacterSummary> =
         parseSubjectCharacters(getText("$API_HOST/v0/subjects/$subjectId/characters"))
 
-    /** 条目吐槽箱中最新的 [COMMENT_LIMIT] 条（非公开接口，见类说明）。 */
-    suspend fun getSubjectComments(subjectId: Int): SubjectComments =
-        parseSubjectComments(getText("$NEXT_HOST/p1/subjects/$subjectId/comments?limit=$COMMENT_LIMIT&offset=0"))
+    /** 条目吐槽箱，按时间从新到旧，从第 offset 条开始取一页（非公开接口，见类说明）。 */
+    suspend fun getSubjectComments(subjectId: Int, offset: Int = 0): Page<SubjectComment> =
+        parseSubjectComments(getText("$NEXT_HOST/p1/subjects/$subjectId/comments?limit=$PAGE_SIZE&offset=$offset"))
 
     /** 角色资料。 */
     suspend fun getCharacter(characterId: Int): CharacterDetail =
@@ -88,8 +93,8 @@ class BangumiApi(private val client: HttpClient = HttpClient()) {
         // companion object 中的 const val 相当于 Java 类里的 private static final 常量。
         const val API_HOST = "https://api.bgm.tv"
         const val NEXT_HOST = "https://next.bgm.tv"
-        const val SEARCH_LIMIT = 20
-        const val COMMENT_LIMIT = 20
+        // 每页条数：搜索结果和吐槽都按每页 20 条请求。
+        const val PAGE_SIZE = 20
     }
 }
 

@@ -1,5 +1,6 @@
 package dev.bangumi.demo.data
 
+import dev.bangumi.demo.model.Page
 import dev.bangumi.demo.model.Subject
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,15 +41,19 @@ class SearchJsonTest {
             }
         """.trimIndent()
 
+        // 本页 1 条，总数 19 条来自响应中的 total。
         assertEquals(
-            listOf(
-                Subject(
-                    id = 328609,
-                    name = "孤独摇滚！",
-                    score = 8.4,
-                    summary = "后藤一里组建乐队的故事。",
-                    imageUrl = "https://lain.bgm.tv/r/200/pic/cover/l/e2/e7/328609_2EHLJ.jpg",
+            Page(
+                items = listOf(
+                    Subject(
+                        id = 328609,
+                        name = "孤独摇滚！",
+                        score = 8.4,
+                        summary = "后藤一里组建乐队的故事。",
+                        imageUrl = "https://lain.bgm.tv/r/200/pic/cover/l/e2/e7/328609_2EHLJ.jpg",
+                    ),
                 ),
+                total = 19,
             ),
             parseSearchResponse(text),
         )
@@ -66,10 +71,12 @@ class SearchJsonTest {
             }
         """.trimIndent()
 
-        val subjects = parseSearchResponse(text)
+        val page = parseSearchResponse(text)
 
-        assertEquals(listOf("Original A", "Original B"), subjects.map { it.name })
-        assertEquals(listOf(null, null), subjects.map { it.imageUrl })
+        assertEquals(listOf("Original A", "Original B"), page.items.map { it.name })
+        assertEquals(listOf(null, null), page.items.map { it.imageUrl })
+        // 响应中没有 total 时以本页条数为总数，视为没有下一页。
+        assertEquals(2, page.total)
     }
 
     // 评分为 0、为 null 或整个 rating 缺失，都表示没有可显示的评分；简介缺失时为空字符串。
@@ -85,16 +92,19 @@ class SearchJsonTest {
             }
         """.trimIndent()
 
-        val subjects = parseSearchResponse(text)
+        val subjects = parseSearchResponse(text).items
 
         assertEquals(listOf(null, null, null), subjects.map { it.score })
         assertEquals(listOf("", "", ""), subjects.map { it.summary })
     }
 
     @Test
-    fun emptyDataReturnsEmptyList() {
+    fun emptyDataReturnsEmptyPage() {
         val text = """{ "data": [], "total": 0, "limit": 20, "offset": 0 }"""
 
-        assertTrue(parseSearchResponse(text).isEmpty())
+        val page = parseSearchResponse(text)
+
+        assertTrue(page.items.isEmpty())
+        assertEquals(0, page.total)
     }
 }
