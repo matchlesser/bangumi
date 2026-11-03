@@ -7,6 +7,7 @@ import dev.bangumi.demo.model.SubjectCollection
 import dev.bangumi.demo.model.SubjectComment
 import dev.bangumi.demo.model.Page
 import dev.bangumi.demo.model.SubjectDetail
+import dev.bangumi.demo.model.SubjectType
 import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -27,6 +28,7 @@ class DetailStateTest {
         rank = 73,
         ratingTotal = 10,
         ratingCounts = listOf(0, 0, 0, 0, 0, 0, 0, 4, 3, 3),
+        type = SubjectType.ANIME,
         date = "2022-10-08",
         platform = "TV",
         episodes = 12,

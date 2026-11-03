@@ -1,5 +1,6 @@
 package dev.bangumi.demo.data
 
+import dev.bangumi.demo.model.SubjectType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -53,15 +54,8 @@ internal fun resizedImageUrl(url: String?, width: Int): String? {
 internal fun preferChineseName(name: String, chineseName: String?): String =
     if (chineseName.isNullOrBlank()) name else chineseName
 
-/** Bangumi 条目类型编号对应的文字。 */
-internal fun subjectTypeLabel(type: Int?): String = when (type) {
-    1 -> "书籍"
-    2 -> "动画"
-    3 -> "音乐"
-    4 -> "游戏"
-    6 -> "三次元"
-    else -> "其他"
-}
+/** Bangumi 条目类型编号对应的文字；未知编号显示“其他”。 */
+internal fun subjectTypeLabel(type: Int?): String = SubjectType.fromId(type)?.label ?: "其他"
 
 /**
  * 把 infobox（资料表）中的一个值转成一行文字。

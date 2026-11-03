@@ -18,7 +18,7 @@ import dev.bangumi.demo.ui.theme.AppDimensions
 /**
  * 番剧信息卡片组件
  *
- * 显示单个番剧的核心信息：封面、名称、评分和简介预览；完整简介留给详情页。
+ * 显示单个条目的核心信息：封面、名称、评分、类型与日期、简介预览；完整简介留给详情页。
  * 卡片只上报“被点击”，不知道点击后显示什么页面，因此同一张卡片可以放进不同列表复用。
  *
  * @param subject 要显示的番剧数据对象
@@ -64,14 +64,25 @@ fun SubjectCard(
                     // 评分显示规则集中在 ScoreLabel，详情页使用同一个组件。
                     ScoreLabel(score = subject.score)
                 }
-                // 简介最多显示三行（与封面高度相近），超出部分用省略号表示；点击卡片可在详情页查看全文。
+                // 类型与日期行：例如“动画 · TV”标签和“2022-10-08”，混合类型的搜索结果靠它区分动画、漫画等。
+                val typeLabel = subject.typeLabel
+                if (typeLabel != null || subject.date != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (typeLabel != null) TagLabel(text = typeLabel)
+                        subject.date?.let { SecondaryText(it) }
+                    }
+                }
+                // 简介最多显示两行，超出部分用省略号表示；点击卡片可在详情页查看全文。
                 // 部分真实条目没有简介，此时不画这一行，避免卡片里留一块空白。
                 if (subject.summary.isNotBlank()) {
                     Text(
                         text = subject.summary,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }

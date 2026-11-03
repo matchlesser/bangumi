@@ -40,4 +40,16 @@ class FormattingTest {
         // 本机时间比服务器慢时差值为负，按“刚刚”处理。
         assertEquals("刚刚", formatRelativeTime(now + 100, now))
     }
+
+    // 年份换算：边界处（新年前后一秒）、闰年 2 月 29 日、1970 年以前都要正确。
+    @Test
+    fun convertsEpochSecondsToYear() {
+        assertEquals(1970, yearOfEpochSeconds(0))
+        assertEquals(1969, yearOfEpochSeconds(-1))
+        assertEquals(2023, yearOfEpochSeconds(1_704_067_199)) // 2023-12-31 23:59:59 UTC
+        assertEquals(2024, yearOfEpochSeconds(1_704_067_200)) // 2024-01-01 00:00:00 UTC
+        assertEquals(2024, yearOfEpochSeconds(1_709_164_800)) // 2024-02-29 00:00:00 UTC
+        assertEquals(2026, yearOfEpochSeconds(1_793_642_889)) // 2026-11 的一条吐槽时间
+        assertEquals(1900, yearOfEpochSeconds(-2_208_988_800)) // 1900-01-01 00:00:00 UTC
+    }
 }

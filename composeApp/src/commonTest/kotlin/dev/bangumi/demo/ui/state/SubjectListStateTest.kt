@@ -2,8 +2,14 @@ package dev.bangumi.demo.ui.state
 
 import dev.bangumi.demo.data.sampleSubjects
 import dev.bangumi.demo.model.Page
+import dev.bangumi.demo.model.SearchQuery
+import dev.bangumi.demo.model.SearchSort
 import dev.bangumi.demo.model.Subject
+import dev.bangumi.demo.model.SubjectType
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +22,7 @@ import kotlin.test.assertTrue
  * 测试搜索状态的变化，无需窗口也不联网；@Test 类似 Java JUnit 的测试方法标记。
  *
  * SubjectListState 接收一个“怎样搜索”的函数，这里传入返回固定结果或抛出异常的 Lambda 代替真实网络。
- * Lambda 的两个参数是关键词和起始位置 offset；不需要的参数用 _ 表示忽略。
+ * Lambda 的两个参数是搜索条件和起始位置 offset；不需要的参数用 _ 表示忽略。
  * runTest { ... } 提供一个测试用协程环境，让测试里可以调用 suspend 函数 search()、loadMore()。
  */
 class SubjectListStateTest {
@@ -32,9 +38,11 @@ class SubjectListStateTest {
     fun initiallyNothingIsSearched() {
         val state = SubjectListState { _, _ -> onePage }
 
-        assertNull(state.results)
-        assertFalse(state.isLoading)
-        assertNull(state.errorMessage)
+        assertNull(state.results.page)
+        assertFalse(state.results.isLoading)
+        assertNull(state.results.error)
+        assertNull(state.typeFilter)
+        assertEquals(SearchSort.MATCH, state.sort)
     }
 
     // 空关键词或只有空白时，不调用搜索函数，结果保持“未搜索”。
@@ -49,23 +57,22 @@ class SubjectListStateTest {
         }
 
         assertEquals(0, calls)
-        assertNull(state.results)
+        assertNull(state.results.page)
     }
 
-    // 关键词去掉首尾空白后交给搜索函数，从第 0 条开始；成功后保存结果，输入框原文不变。
+    // 关键词去掉首尾空白后交给搜索函数，带上当前的类型筛选和排序，从第 0 条开始；输入框原文不变。
     @Test
-    fun successfulSearchStoresFirstPageWithTrimmedKeyword() = runTest {
-        var received = ""
-        val state = SubjectListState { keyword, offset -> received = "$keyword@$offset"; onePage }
+    fun successfulSearchUsesTrimmedKeywordAndCurrentFilters() = runTest {
+        val received = mutableListOf<Pair<SearchQuery, Int>>()
+        val state = SubjectListState { query, offset -> received += query to offset; onePage }
         state.updateQuery("  孤独摇滚 ")
 
         state.search()
 
-        assertEquals("孤独摇滚@0", received)
-        assertEquals(onePage, state.results)
+        assertEquals(listOf(SearchQuery("孤独摇滚", type = null, sort = SearchSort.MATCH) to 0), received)
+        assertEquals(onePage, state.results.page)
         assertEquals("  孤独摇滚 ", state.query)
-        assertFalse(state.isLoading)
-        assertNull(state.errorMessage)
+        assertFalse(state.results.isLoading)
     }
 
     // 等待结果期间 isLoading 为 true；结束后恢复为 false。
@@ -74,13 +81,13 @@ class SubjectListStateTest {
         var loadingDuringSearch = false
         // lateinit：先声明、稍后赋值的变量，因为 Lambda 里要读取的 state 正是用这个 Lambda 创建的。
         lateinit var state: SubjectListState
-        state = SubjectListState { _, _ -> loadingDuringSearch = state.isLoading; Page(emptyList(), 0) }
+        state = SubjectListState { _, _ -> loadingDuringSearch = state.results.isLoading; Page(emptyList(), 0) }
         state.updateQuery("任意")
 
         state.search()
 
         assertTrue(loadingDuringSearch)
-        assertFalse(state.isLoading)
+        assertFalse(state.results.isLoading)
     }
 
     // 搜过但没有匹配时是空的一页，与“还没搜索”的 null 区分开。
@@ -91,7 +98,7 @@ class SubjectListStateTest {
 
         state.search()
 
-        assertEquals(Page(emptyList<Subject>(), 0), state.results)
+        assertEquals(Page(emptyList<Subject>(), 0), state.results.page)
     }
 
     // 搜索失败时记录原因并结束加载；再次搜索成功后错误被清除，这就是“重试”。
@@ -106,15 +113,15 @@ class SubjectListStateTest {
 
         state.search()
 
-        assertEquals("Bangumi 返回 HTTP 503", state.errorMessage)
-        assertNull(state.results)
-        assertFalse(state.isLoading)
+        assertEquals("Bangumi 返回 HTTP 503", state.results.error)
+        assertNull(state.results.page)
+        assertFalse(state.results.isLoading)
 
         shouldFail = false
         state.search()
 
-        assertNull(state.errorMessage)
-        assertEquals(onePage, state.results)
+        assertNull(state.results.error)
+        assertEquals(onePage, state.results.page)
     }
 
     // 异常没有文字说明时，显示异常类型名，而不是笼统的“未知错误”。
@@ -125,7 +132,7 @@ class SubjectListStateTest {
 
         state.search()
 
-        assertEquals("UnsupportedOperationException", state.errorMessage)
+        assertEquals("UnsupportedOperationException", state.results.error)
     }
 
     // 协程被取消（例如关闭窗口）不算搜索失败：不显示错误，异常继续抛出，加载状态结束。
@@ -136,30 +143,84 @@ class SubjectListStateTest {
 
         assertFailsWith<CancellationException> { state.search() }
 
-        assertNull(state.errorMessage)
-        assertFalse(state.isLoading)
+        assertNull(state.results.error)
+        assertFalse(state.results.isLoading)
     }
 
-    // 清空关键词回到初始提示：结果和错误都被清除。
+    // 清空关键词回到初始提示：结果和错误都被清除，筛选条件保留。
     @Test
-    fun clearQueryResetsResultsAndError() = runTest {
+    fun clearQueryResetsResultsButKeepsFilters() = runTest {
         val state = SubjectListState { _, _ -> onePage }
         state.updateQuery("孤独摇滚")
-        state.search()
+        state.changeType(SubjectType.BOOK)
 
         state.clearQuery()
 
         assertEquals("", state.query)
-        assertNull(state.results)
-        assertNull(state.errorMessage)
+        assertNull(state.results.page)
+        assertEquals(SubjectType.BOOK, state.typeFilter)
     }
 
-    // 加载更多：用这次搜索的关键词（即使输入框已改动）和已有条数作为 offset，结果拼接在后面；取完后不再请求。
+    // 切换类型或排序时，输入框有关键词就立即按新条件重新搜索；选同一个值不重复请求。
+    @Test
+    fun changingFiltersSearchesAgainWithNewConditions() = runTest {
+        val received = mutableListOf<SearchQuery>()
+        val state = SubjectListState { query, _ -> received += query; onePage }
+        state.updateQuery("孤独摇滚")
+        state.search()
+
+        state.changeType(SubjectType.BOOK)
+        state.changeSort(SearchSort.HEAT)
+        state.changeSort(SearchSort.HEAT)
+
+        assertEquals(
+            listOf(
+                SearchQuery("孤独摇滚"),
+                SearchQuery("孤独摇滚", type = SubjectType.BOOK),
+                SearchQuery("孤独摇滚", type = SubjectType.BOOK, sort = SearchSort.HEAT),
+            ),
+            received,
+        )
+    }
+
+    // 还没输入关键词时切换筛选，只记住条件，不发请求。
+    @Test
+    fun changingFiltersWithoutKeywordOnlyRemembersThem() = runTest {
+        var calls = 0
+        val state = SubjectListState { _, _ -> calls++; onePage }
+
+        state.changeType(SubjectType.GAME)
+
+        assertEquals(0, calls)
+        assertEquals(SubjectType.GAME, state.typeFilter)
+    }
+
+    // 快速连续切换筛选时，只显示最后一次请求的结果：先发出的慢请求返回后被丢弃。
+    @Test
+    fun latestRequestWinsWhenFiltersChangeQuickly() = runTest {
+        val slowBookPage = CompletableDeferred<Page<Subject>>()
+        val state = SubjectListState { query, _ ->
+            if (query.type == SubjectType.BOOK) slowBookPage.await() else Page(subjects(from = 100, count = 1), 1)
+        }
+        state.updateQuery("孤独摇滚")
+
+        // 先切到书籍（请求挂起等待），再切到游戏（立即返回），最后书籍的结果才到达。
+        val bookJob = launch { state.changeType(SubjectType.BOOK) }
+        yield()
+        state.changeType(SubjectType.GAME)
+        slowBookPage.complete(Page(subjects(from = 1, count = 1), 1))
+        bookJob.join()
+
+        assertEquals(listOf(100), state.results.page?.items?.map { it.id })
+        assertFalse(state.results.isLoading)
+    }
+
+    // 加载更多：用这次搜索的条件（即使输入框已改动）和已有条数作为 offset，结果拼接在后面；取完后不再请求。
     @Test
     fun loadMoreAppendsNextPageUntilAllLoaded() = runTest {
         val requests = mutableListOf<String>()
-        val state = SubjectListState { keyword, offset ->
-            requests += "$keyword@$offset"
+        val state = SubjectListState { query, offset ->
+            requests += "${query.keyword}@$offset"
             Page(items = subjects(from = offset, count = if (offset == 0) 20 else 12), total = 32)
         }
         state.updateQuery("进击的巨人")
@@ -169,27 +230,27 @@ class SubjectListStateTest {
         state.loadMore()
 
         assertEquals(listOf("进击的巨人@0", "进击的巨人@20"), requests)
-        assertEquals((0 until 32).toList(), state.results?.items?.map { it.id })
-        assertFalse(state.results!!.hasMore)
+        assertEquals((0 until 32).toList(), state.results.page?.items?.map { it.id })
+        assertFalse(state.results.page!!.hasMore)
 
         state.loadMore()
 
         assertEquals(2, requests.size)
     }
 
-    // 加载更多不改变 resultsVersion（列表保持滚动位置）；新的搜索会让它加一（列表回到顶部）。
+    // 加载更多不改变 version（列表保持滚动位置）；新的搜索会让它加一（列表回到顶部）。
     @Test
-    fun onlyNewSearchChangesResultsVersion() = runTest {
+    fun onlyNewSearchChangesVersion() = runTest {
         val state = SubjectListState { _, offset -> Page(items = subjects(from = offset, count = 20), total = 40) }
         state.updateQuery("孤独摇滚")
         state.search()
-        val afterFirstSearch = state.resultsVersion
+        val afterFirstSearch = state.results.version
 
         state.loadMore()
-        assertEquals(afterFirstSearch, state.resultsVersion)
+        assertEquals(afterFirstSearch, state.results.version)
 
         state.search()
-        assertEquals(afterFirstSearch + 1, state.resultsVersion)
+        assertEquals(afterFirstSearch + 1, state.results.version)
     }
 
     // 加载下一页失败：已显示的结果保留，只记录 loadMoreError；重试成功后错误清除。
@@ -205,15 +266,15 @@ class SubjectListStateTest {
 
         state.loadMore()
 
-        assertEquals("Bangumi 返回 HTTP 502", state.loadMoreError)
-        assertEquals(20, state.results?.items?.size)
-        assertFalse(state.isLoadingMore)
+        assertEquals("Bangumi 返回 HTTP 502", state.results.loadMoreError)
+        assertEquals(20, state.results.page?.items?.size)
+        assertFalse(state.results.isLoadingMore)
 
         failNextPage = false
         state.loadMore()
 
-        assertNull(state.loadMoreError)
-        assertEquals(40, state.results?.items?.size)
+        assertNull(state.results.loadMoreError)
+        assertEquals(40, state.results.page?.items?.size)
     }
 
     // 下一页在等待期间用户清空了关键词：这一页作废，不会把结果又拼回来。
@@ -229,7 +290,7 @@ class SubjectListStateTest {
 
         state.loadMore()
 
-        assertNull(state.results)
-        assertNull(state.loadMoreError)
+        assertNull(state.results.page)
+        assertNull(state.results.loadMoreError)
     }
 }

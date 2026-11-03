@@ -1,6 +1,7 @@
 package dev.bangumi.demo.data
 
 import dev.bangumi.demo.model.SubjectCollection
+import dev.bangumi.demo.model.SubjectType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -45,6 +46,7 @@ class SubjectJsonTest {
         assertEquals(41530, detail.ratingTotal)
         // 下标 0 是 1 分，下标 9 是 10 分。
         assertEquals(listOf(200, 49, 51, 112, 378, 1426, 5250, 14390, 12653, 7021), detail.ratingCounts)
+        assertEquals(SubjectType.ANIME, detail.type)
         assertEquals("TV", detail.platform)
         assertEquals("2022-10-08", detail.date)
         assertEquals(12, detail.episodes)
@@ -72,6 +74,7 @@ class SubjectJsonTest {
         assertNull(detail.rank)
         assertNull(detail.date)
         assertNull(detail.platform)
+        assertNull(detail.type)
         assertNull(detail.episodes)
         assertEquals(listOf(0, 0, 0, 0, 0, 0, 0, 3, 0, 0), detail.ratingCounts)
         assertEquals("", detail.summary)

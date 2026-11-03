@@ -2,9 +2,9 @@
 
 > 本文档来源于实际项目代码阅读过程中遇到的问题，用于记录 Kotlin 中容易忘记、容易误解以及值得长期积累的知识。
 >
-> 当前示例来自 Windows 桌面入口 [Main.kt](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt)、数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、界面中枢 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与页面 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)。项目使用 Kotlin 2.2.21 与 Compose Multiplatform 1.9.3。
+> 当前示例来自 Windows 桌面入口 [Main.kt](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt)、数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、界面中枢 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与页面 [SubjectListScreen.kt](https://github.com/matchlesser/bangumi/blob/cc08f80/composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)。项目使用 Kotlin 2.2.21 与 Compose Multiplatform 1.9.3。
 >
-> 笔记中的代码片段保留记录时的版本。例如 `App(subjects = sampleSubjects)` 是 BG-001～003 的写法；BG-004 起入口改为 `App(searchSubjects = api::searchSubjects)`，示例数据移到测试目录。
+> 笔记中的代码片段保留记录时的版本。例如 `App(subjects = sampleSubjects)` 是 BG-001～003 的写法；BG-004 起入口改为 `App(searchSubjects = api::searchSubjects)`，示例数据移到测试目录；BG-017 起搜索页 `SubjectListScreen` 拆为首页 `HomeScreen` 和搜索标签页 `SearchTab`，旧文件的链接指向 GitHub 上的历史版本。
 
 ## 目录
 
@@ -99,7 +99,7 @@ application：应用运行环境
             └── App：窗口中的 Compose 界面
 ```
 
-在入口代码阅读完成后，进一步深入阅读了数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与界面总控 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)，并在 `BG-003 示例条目详情` 准备阶段阅读了 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中的 `LazyColumn.items` 列表渲染与选中状态设计。
+在入口代码阅读完成后，进一步深入阅读了数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与界面总控 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)，并在 `BG-003 示例条目详情` 准备阶段阅读了 [SubjectListScreen.kt](https://github.com/matchlesser/bangumi/blob/cc08f80/composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中的 `LazyColumn.items` 列表渲染与选中状态设计。
 
 本轮学习完成了一系列核心概念的攻坚：
 - 为什么需要 `remember` 及其充当“函数式 UI 成员变量”的意义；
@@ -1302,7 +1302,7 @@ public final class SubjectListState {
 
 ### 3.8 `LazyListScope.items` 源码逐层还原（消除伪递归假象）
 
-在 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中调用的 `items` 函数，其官方源码叠满了各种语法糖：
+在 [SubjectListScreen.kt](https://github.com/matchlesser/bangumi/blob/cc08f80/composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中调用的 `items` 函数，其官方源码叠满了各种语法糖：
 
 **官方源码（充满语法糖）：**
 

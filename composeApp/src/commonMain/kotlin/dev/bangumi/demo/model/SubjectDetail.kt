@@ -9,6 +9,7 @@ package dev.bangumi.demo.model
  * @param rank Bangumi 排名；未上榜时为 null。
  * @param ratingTotal 参与评分的人数。
  * @param ratingCounts 各分数的人数，固定 10 个元素：下标 0 对应 1 分，下标 9 对应 10 分。
+ * @param type 条目类型（动画、书籍等）；未知时为 null。
  * @param date 放送或发售日期，例如 "2022-10-08"；未知时为 null。
  * @param platform 平台，例如 "TV"、"剧场版"；未知时为 null。
  * @param episodes 话数；未知时为 null。
@@ -23,6 +24,7 @@ data class SubjectDetail(
     val rank: Int?,
     val ratingTotal: Int,
     val ratingCounts: List<Int>,
+    val type: SubjectType?,
     val date: String?,
     val platform: String?,
     val episodes: Int?,

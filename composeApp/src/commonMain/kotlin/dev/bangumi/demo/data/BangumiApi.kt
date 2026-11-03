@@ -1,10 +1,12 @@
 package dev.bangumi.demo.data
 
 import dev.bangumi.demo.BuildInfo
+import dev.bangumi.demo.model.BrowseQuery
 import dev.bangumi.demo.model.CharacterAppearance
 import dev.bangumi.demo.model.CharacterDetail
 import dev.bangumi.demo.model.CharacterSummary
 import dev.bangumi.demo.model.Page
+import dev.bangumi.demo.model.SearchQuery
 import dev.bangumi.demo.model.Subject
 import dev.bangumi.demo.model.SubjectComment
 import dev.bangumi.demo.model.SubjectDetail
@@ -36,18 +38,30 @@ import io.ktor.http.isSuccess
 class BangumiApi(private val client: HttpClient = HttpClient()) {
 
     /**
-     * 按关键词搜索动画，返回从第 offset 条开始的一页（最多 [PAGE_SIZE] 条）以及匹配总数。
+     * 按关键词搜索条目（可限定类型、选择排序），返回从第 offset 条开始的一页（最多 [PAGE_SIZE] 条）以及匹配总数。
      * offset 默认为 0，即第一页；“加载更多”时传入已取得的条数。
      */
-    suspend fun searchSubjects(keyword: String, offset: Int = 0): Page<Subject> {
+    suspend fun searchSubjects(query: SearchQuery, offset: Int = 0): Page<Subject> {
         val response = client.post("$API_HOST/v0/search/subjects") {
             parameter("limit", PAGE_SIZE)
             parameter("offset", offset)
             header(HttpHeaders.UserAgent, BANGUMI_USER_AGENT)
             contentType(ContentType.Application.Json)
-            setBody(searchRequestJson(keyword))
+            setBody(searchRequestJson(query))
         }
-        return parseSearchResponse(response.textOrThrow())
+        return parseSubjectPage(response.textOrThrow())
+    }
+
+    /**
+     * 索引浏览：按类型、分类、年份、月份筛选条目，按排名或日期排序，返回从第 offset 条开始的一页。
+     * 对应 Bangumi 网站的“浏览”功能（GET /v0/subjects）。
+     */
+    suspend fun browseSubjects(query: BrowseQuery, offset: Int = 0): Page<Subject> {
+        val response = client.get("$API_HOST/v0/subjects") {
+            browseParameters(query, offset, PAGE_SIZE).forEach { (name, value) -> parameter(name, value) }
+            header(HttpHeaders.UserAgent, BANGUMI_USER_AGENT)
+        }
+        return parseSubjectPage(response.textOrThrow())
     }
 
     /** 条目详情：评分分布、排名、放送信息、收藏人数等。 */

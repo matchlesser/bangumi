@@ -154,7 +154,7 @@ private fun SubjectInfo(detail: SubjectDetail) {
             }
         }
         // listOfNotNull 只保留非 null 的项，缺少的信息不会留下多余的分隔符。
-        val meta = listOfNotNull(detail.platform, detail.date, detail.episodes?.let { "$it 话" })
+        val meta = listOfNotNull(detail.type?.label, detail.platform, detail.date, detail.episodes?.let { "$it 话" })
         if (meta.isNotEmpty()) {
             Text(text = meta.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
         }

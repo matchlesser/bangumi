@@ -40,7 +40,7 @@ cd D:\Projects\workspace\bangumi
 | [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt) | 创建 3 条示例数据 |
 | [Main.kt](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt) | 程序入口，打开窗口并把数据交给界面 |
 | [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt) | 应用共享界面入口，应用统一主题 |
-| [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) | 显示页面标题和番剧列表 |
+| [SubjectListScreen.kt](https://github.com/matchlesser/bangumi/blob/cc08f80/composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) | 显示页面标题和番剧列表 |
 | [SubjectCard.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/SubjectCard.kt) | 显示一部番剧的名称、评分和简介 |
 | [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt) | 统一主题和常用间距 |
 

@@ -5,6 +5,7 @@ import dev.bangumi.demo.model.SubjectCollection
 import dev.bangumi.demo.model.SubjectComment
 import dev.bangumi.demo.model.Page
 import dev.bangumi.demo.model.SubjectDetail
+import dev.bangumi.demo.model.SubjectType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -32,6 +33,7 @@ fun parseSubjectDetail(text: String): SubjectDetail {
         ratingTotal = rating?.total ?: 0,
         // (1..10).map 依次取 "1" 到 "10" 的人数，类似 Java 的 IntStream.rangeClosed(1, 10).map(...)。
         ratingCounts = (1..10).map { point -> rating?.count?.get(point.toString()) ?: 0 },
+        type = SubjectType.fromId(dto.type),
         date = dto.date?.takeIf { it.isNotBlank() },
         platform = dto.platform?.takeIf { it.isNotBlank() },
         episodes = dto.eps?.takeIf { it > 0 },
@@ -116,6 +118,7 @@ private data class SubjectDto(
     val date: String? = null,
     val platform: String? = null,
     val eps: Int? = null,
+    val type: Int? = null,
     val rating: RatingDto? = null,
     val collection: CollectionDto? = null,
     val images: ImageSetDto? = null,

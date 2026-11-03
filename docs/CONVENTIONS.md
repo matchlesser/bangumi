@@ -53,11 +53,11 @@
 
 | 位置 | 职责 |
 | --- | --- |
-| `commonMain/.../model/` | 界面使用的数据模型：`Subject`、`SubjectDetail`、角色相关模型 |
-| `commonMain/.../data/` | `BangumiApi.kt` 只负责发请求；`SearchJson.kt`、`SubjectJson.kt`、`CharacterJson.kt` 把各接口的 JSON 转成模型；`BangumiJson.kt` 放共用解析工具 |
-| `commonMain/.../ui/screens/` | 页面布局和事件连接：搜索页、条目详情页、角色详情页 |
+| `commonMain/.../model/` | 界面使用的数据模型：`Subject`、`SubjectDetail`、角色相关模型、分页 `Page`、筛选条件（`SubjectFilters.kt`） |
+| `commonMain/.../data/` | `BangumiApi.kt` 只负责发请求；`SearchJson.kt`（搜索与浏览）、`SubjectJson.kt`、`CharacterJson.kt` 把各接口的 JSON 转成模型并生成请求参数；`BangumiJson.kt` 放共用解析工具 |
+| `commonMain/.../ui/screens/` | 页面布局和事件连接：首页（`HomeScreen` 及 `SearchTab`、`BrowseTab` 两个标签页）、条目详情页、角色详情页 |
 | `commonMain/.../ui/components/` | 被多个页面使用的界面组件和文字格式化函数 |
-| `commonMain/.../ui/state/` | 页面状态、加载状态 `LoadState` 和返回栈 `AppNavigator` |
+| `commonMain/.../ui/state/` | 页面状态、加载状态 `LoadState`、分页状态 `PagedResults` 和返回栈 `AppNavigator` |
 | `commonMain/.../ui/theme/` | 统一主题和设计常量 |
 | `desktopMain/` | 桌面程序入口、窗口及平台能力 |
 
@@ -67,7 +67,8 @@
 - 接口原始结构（DTO）只在各 `*Json.kt` 文件内部使用（`private`），界面只接触 `model` 中的类型。每个解析函数都是不联网的普通函数，用按真实响应精简的 JSON 测试。
 - 页面导航使用 `AppNavigator` 中的返回栈：栈中保存页面对象（含状态和滚动位置），返回时恢复原页面而不重新请求。导航器在桌面入口 `Main.kt` 创建，供窗口级快捷键（Esc 返回）和 `App` 共用。暂未引入导航库；页面类型或参数明显增多时再评估。
 - 详情页的数据按区块各自加载（`LoadState`：加载中 / 成功 / 失败），一块失败不影响其他区块；“重试”只重新请求未成功的区块。
-- 分页数据统一用 `Page<T>`（已取得的条目 + 总数），每页 20 条；拼接下一页用 `Page.appended` 并按 id 去重。“加载更多”失败时保留已显示内容，只在列表底部提示重试；等待期间重新搜索或清空时丢弃过期的一页。
+- 分页数据统一用 `Page<T>`（已取得的条目 + 总数），每页 20 条；拼接下一页用 `Page.appended` 并按 id 去重。分页列表的加载状态统一用 `PagedResults<R, T>`：第一页“最新请求优先”（快速切换条件时只显示最后一次的结果），“加载更多”沿用当前结果的请求条件，失败时保留已显示内容，等待期间换了新结果或清空时丢弃过期的一页。
+- 筛选条件用 `model` 中的枚举和 `SearchQuery` / `BrowseQuery` 表示，编号与接口一致；条件之间的约束（换类型清除分类、无年份不选月份）写在状态层并测试，界面只上报用户的选择。
 - 快捷键的判断逻辑放在 `commonMain`（例如 `handleBackShortcut`），只在 `desktopMain` 中接到窗口事件上；测试时传入 `Key`、`KeyEventType` 常量，不使用 Compose 构造按键事件的内部 API。
 
 第一阶段不必预先建立所有目录或接口。需要从示例数据切换到网络数据、替换实现或隔离平台差异时，再引入相应抽象。
@@ -90,11 +91,13 @@
 - 常用颜色、字体、间距、圆角集中维护；页面引用主题或公共常量。
 - 第一个经过确认的演示页面作为后续页面的样式参考，形成基准后在这里记录对应文件和必要截图。
 - 支持键盘操作及清晰的焦点反馈，避免只有颜色才能区分状态。
-- 搜索页整页的加载、空结果、错误和重试使用列表页中的 `StatusMessage` 统一排版（居中标题、说明、可选按钮，加载时显示转圈指示器）。
+- 首页用 `PrimaryTabRow` 分为“搜索 / 索引”两个标签页，两页的条目结果统一使用 [SubjectResults.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/SubjectResults.kt)：加载、空结果、错误和重试用其中的 `StatusMessage` 居中排版，结果列表末尾为加载更多。
+- 单选条件统一使用 [FilterControls.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/FilterControls.kt)：选项少（类型、分类）用一排 `OptionChips` 筛选标签，选项多（年份、月份、排序）用 `OptionDropdown` 下拉菜单，按钮上写明“名称：当前值”。
+- 条目卡片在标题下显示“类型 · 形式”标签（如“动画 · TV”“书籍 · 漫画”）和日期，混合类型的结果靠它区分。
 - 分页列表的末尾统一使用 [LoadMoreFooter.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/LoadMoreFooter.kt)：“加载更多（已显示 n / 共 m）”按钮、加载中、失败与重试、已显示全部。用按钮而不是滚动到底自动加载，请求由用户明确触发，也便于键盘操作。
 - 详情页的返回按钮写明快捷键“← 返回（Esc）”；按 Esc 返回上一页，在搜索页不处理。
 - 详情页的区块使用 [DetailLayout.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/DetailLayout.kt) 中的部件：`DetailPage`（顶部固定的“← 返回”栏 + 可滚动内容区，边距和最大宽度与搜索页一致）、`DetailSection`（区块标题）、`LoadStateContent`（区块内的加载中 / 失败与重试 / 内容）、`SecondaryText`（来源、统计等次要文字）。新的详情类页面沿用这些部件。
-- 当前演示页为 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)，使用 Material 3 默认浅色主题和统一条目卡片。主题与间距集中在 [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt)。
+- 当前首页为 [HomeScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/HomeScreen.kt)（搜索见 [SearchTab.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SearchTab.kt)，索引见 [BrowseTab.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/BrowseTab.kt)），使用 Material 3 默认浅色主题和统一条目卡片。主题与间距集中在 [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt)。
 - 评分统一使用 [ScoreLabel.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ScoreLabel.kt)，不在页面中重复“暂无评分”判断；角色定位、收藏状态、作品类型等小标签统一使用同一文件中的 `TagLabel`。
 - 网络图片统一使用 [RemoteImage.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/RemoteImage.kt)：浅色占位底、等比裁切，没有图片或加载失败时只显示占位，布局不跳动。图片尺寸集中在 `AppDimensions`（列表封面 64×90、详情封面 140×196、小封面 40×56、头像 48 与 32）。旁边已有文字的图片 `contentDescription` 传 null。按显示尺寸选择接口提供的图片规格（如 small、common、grid），不在列表中加载原图；只给原图时用 `resizedImageUrl` 转成 `/r/宽度/` 缩略图。
 - 可点击的卡片统一使用 [ClickableCard.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ClickableCard.kt)：获得键盘焦点时显示主题色描边（宽度为 `AppDimensions.focusBorderWidth`），让焦点不只靠底色深浅区分。
@@ -143,5 +146,7 @@
 2026-11-03（BG-015、BG-016 分页与快捷键）：分页用“加载更多”按钮而不是无限滚动；Esc 返回在窗口级处理，使其不依赖页面焦点，导航器因此上移到桌面入口创建。
 
 2026-11-03（BG-007 安装包）：采用 MSI 并按当前用户安装，避免安装时需要管理员权限；应用图标自行绘制（`tools/MakeIcon.java`），不使用 Bangumi 官方标志；暂不做代码签名。
+
+2026-11-03（BG-017、BG-018 筛选与索引）：搜索不再限于动画，默认搜索全部类型并在卡片上标出类型；首页拆为“搜索 / 索引”标签页，索引使用官方浏览接口。搜索和索引的分页逻辑抽成共用的 `PagedResults`，第一页由“加载中忽略新请求”改为“最新请求优先”，以适应快速切换筛选条件。
 
 后续仅记录会影响未来开发的决定、原因和适用范围，不把每次改动写成长期规范。

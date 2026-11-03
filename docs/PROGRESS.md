@@ -4,9 +4,9 @@
 
 ## 当前停点
 
-最近完成的功能目标是 `BG-007 Windows 安装包`：`packageMsi` 生成 1.0.0 版 MSI（内置精简 Java 运行环境），按当前用户安装，带开始菜单、桌面快捷方式和应用图标；已实际安装、运行搜索并卸载验证。此前完成搜索、详情、角色、图片、分页和 Esc 返回（BG-004、BG-005、BG-013～BG-016）。
+最近完成的功能目标是 `BG-017 搜索筛选与类型标签` 与 `BG-018 首页索引`：首页分为“搜索 / 索引”两个标签页；搜索可按类型筛选、选择排序，结果卡片标出“动画 · TV”“书籍 · 漫画”等类型；索引页按类型、分类、年份、月份浏览条目。此前完成安装包（BG-007）以及搜索、详情、角色、图片、分页和 Esc 返回。
 
-2026-11-03 起用户决定由助手全程负责开发（见 [项目约定](CONVENTIONS.md#协作方式)）。BG-007 已作为一个带目标编号的提交保存在 Git 中并推送到 GitHub（安装包文件本身在 build 目录，不提交）。下一步候选见“下次接续”；编号和命名规则见 [项目约定](CONVENTIONS.md)。
+2026-11-03 起用户决定由助手全程负责开发（见 [项目约定](CONVENTIONS.md#协作方式)）。BG-017 与 BG-018 已作为一个带目标编号的提交保存在 Git 中并推送到 GitHub；1.0.0 安装包不包含这两个功能，需要时提高版本号重新打包。下一步候选见“下次接续”；编号和命名规则见 [项目约定](CONVENTIONS.md)。
 
 ## 目标索引
 
@@ -31,8 +31,10 @@
 | BG-014 | 封面与头像 | 已完成 | 列表与详情封面、角色头像与立绘、出演作品小封面、吐槽用户头像；Coil 3.3.0 加载并缓存；33 个测试及真实数据渲染验证通过 |
 | BG-015 | 分页加载 | 已完成 | 搜索结果与吐槽按每页 20 条“加载更多”，去重、失败重试、过期结果丢弃；真实窗口验证通过 |
 | BG-016 | Esc 返回 | 已完成 | 详情页按 Esc 返回上一页，搜索页不处理；窗口级处理，与焦点无关；真实窗口验证通过 |
+| BG-017 | 搜索筛选与类型标签 | 已完成 | 搜索不再限于动画，可按类型筛选（全部/动画/书籍/音乐/游戏/三次元）并按匹配度、收藏人数、排名、评分排序；卡片与详情显示“类型 · 形式”和日期；真实窗口验证通过 |
+| BG-018 | 首页索引 | 已完成 | 首页“索引”标签页按类型、分类、年份、月份浏览条目，按排名或日期排序，可加载更多；结果与 API 直接请求一致；真实窗口验证通过 |
 
-自动测试随需要验证逻辑的目标一起加入；当前共有 46 个测试，都不联网：搜索、条目、角色三类 JSON 转换 13 个（含图片地址与总数），图片地址工具 2 个，分页拼接 4 个，搜索状态 13 个（含加载更多），详情状态 6 个（含吐槽加载更多），返回栈 2 个，Esc 返回 3 个，文字格式化 3 个。
+自动测试随需要验证逻辑的目标一起加入；当前共有 62 个测试，都不联网：JSON 转换与请求参数 16 个，图片地址工具 2 个，分页拼接 4 个，类型与分类 3 个，搜索状态 16 个（含筛选、最新请求优先、加载更多），索引状态 6 个，详情状态 6 个，返回栈 2 个，Esc 返回 3 个，文字与年份 4 个。
 
 ## BG-000 项目准备与协作规范
 
@@ -48,7 +50,7 @@
 - 固定 Kotlin/Compose 编译器 2.2.21、Compose Multiplatform 1.9.3、Gradle Wrapper 8.14.3；补充 `.gitignore`。
 - 在 `commonMain` 中分开实现 `Subject` 模型、示例数据、页面、条目卡片和主题；`desktopMain` 中提供桌面入口与窗口。
 - 使用 Material 3 默认浅色主题，集中管理常用间距；显示 3 条虚构番剧的名称、评分和简介，缺少评分时显示“暂无评分”。
-- 回顾入口：[入门说明与 Java 对照](FIRST_STEPS.md)、[桌面入口](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt)、[列表页面](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)、[运行截图](images/first-window.jpg)。
+- 回顾入口：[入门说明与 Java 对照](FIRST_STEPS.md)、[桌面入口](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt)、[列表页面](https://github.com/matchlesser/bangumi/blob/cc08f80/composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)、[运行截图](images/first-window.jpg)。
 
 ### 实现时的环境与验证记录
 
@@ -205,13 +207,37 @@
 - 卸载：`msiexec /x ... /qn` 退出码 0，快捷方式与登记信息已删除。因为验证时测试启动的程序仍在运行，安装目录中被占用的文件未能删除；关闭这些进程后手动删除了残留目录，最终没有安装目录、快捷方式、注册表项或进程残留。
 - 验证边界：没有通过双击 MSI 的图形界面安装（只验证了静默安装）；没有在未安装 Java 的另一台电脑上测试；没有代码签名，下载后运行时 Windows SmartScreen 可能提示“未知发布者”。
 
+## BG-017 搜索筛选与类型标签 与 BG-018 首页索引
+
+两个目标在同一轮实现（用户要求：搜索加筛选、结果标出动漫/书籍等类型、首页加索引功能）。
+
+### 完成内容
+
+- 接口（2026-11-03 核对 OpenAPI 并实际请求）：
+  - 搜索 `POST /v0/search/subjects` 支持 `filter.type`（不传即全部类型）与 `sort`（match/heat/rank/score）。不限类型时“孤独摇滚”共 299 条，结果含 `type` 与 `platform`（如 TV、漫画、画集）。
+  - 浏览 `GET /v0/subjects?type=&cat=&year=&month=&sort=rank|date`。例如 2024 年 10 月 TV 动画按排名共 59 条，2023 年漫画 246 条。分类编号见 `SubjectCategory`（动画 TV=1、WEB=5、OVA=2、剧场版=3；书籍 漫画=1001、小说=1002、画集=1003 等）。
+- 模型：[SubjectFilters.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/SubjectFilters.kt) 定义 `SubjectType`、`SubjectCategory`、`SearchSort`、`BrowseSort`、`SearchQuery`、`BrowseQuery`；`Subject` 增加类型、形式（platform）和日期，`typeLabel` 组合成“书籍 · 漫画”；`SubjectDetail` 增加类型。
+- 数据层：搜索与浏览共用 `parseSubjectPage`；`searchRequestJson`、`browseParameters` 生成请求，单独测试；`BangumiApi.browseSubjects` 新增。
+- 状态层：新增共用的 [PagedResults](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/PagedResults.kt)（第一页、加载更多、失败重试、丢弃过期结果），搜索和索引都使用它；第一页改为“最新请求优先”，快速切换筛选时只显示最后一次的结果。`SubjectListState` 增加类型筛选和排序，切换后有关键词即重新搜索；新增 [BrowseState](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/BrowseState.kt)，换类型清除分类、清除年份同时清除月份、无年份不能选月份。
+- 界面：首页改为 [HomeScreen](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/HomeScreen.kt)（标题 + “搜索 / 索引”标签栏），内容分别为 `SearchTab`（搜索栏、类型筛选标签、排序下拉）和 `BrowseTab`（类型、分类两排筛选标签，年份、月份、排序下拉）；结果区抽为共用的 `SubjectResults`，筛选控件为 `OptionChips`、`OptionDropdown`。卡片新增“类型 · 形式”标签和日期，简介改为两行；详情信息行加入类型。原 `SubjectListScreen` 删除。
+- 年份列表：从明年倒数到 1920 年；当前年份由 `yearOfEpochSeconds` 按公历规则计算（共享代码不能用 `java.time`）。
+
+### 2026-11-03 验证结果
+
+- 构建与测试：`assemble`、`check` 成功，无编译警告；62 个测试，0 失败。新增或改写：搜索状态 16 个（含筛选重新搜索、无关键词只记住筛选、最新请求优先）、`BrowseStateTest` 6 个、`SubjectFiltersTest` 3 个、请求参数与类型解析 3 个、年份换算 1 个。
+- 真实窗口：
+  - 搜索“孤独摇滚”（全部类型）共 299 个条目，卡片分别显示“书籍 · 漫画 2019-02-27”和“动画 · TV 2022-10-08”（[截图](images/bg-017-search-all-types.jpg)）；点“书籍”立即重新搜索为 165 个，全是书籍；排序选“评分”后按评分排列，原画集显示“书籍 · 画集”（[截图](images/bg-017-search-book-score.jpg)）。
+  - 索引默认全部动画按排名共 9,114 个，“月份”不可选；选 TV → 2024 年得 225 个 → 10 月得 59 个（与直接请求接口一致，[截图](images/bg-018-browse-2024-10-tv.jpg)）；切到“书籍”后分类重置为“全部”并换成漫画/小说/画集/其他，年月保留，共 27 个。
+  - 从索引打开条目，详情信息行显示“书籍 · 小说 · 2024-10-19”；按 Esc 返回后索引条件和结果不变；切回搜索标签，之前的关键词、筛选和结果仍在。
+- 验证边界：没有逐一检查所有分类组合（音乐无分类、游戏与三次元分类只在测试中覆盖）；按日期排序会出现 Bangumi 上登记为未来日期的条目，属于数据本身；1.0.0 安装包未重新打包。
+
 ## 下次接续
 
 候选方向（尚未排定，由助手按用户意见选择）：
 
 - 本地保存（BG-006）：收藏或“想看”标记保存在本机，重启后仍在，明确不等于同步到 Bangumi 账户。
-- 发布：在 GitHub 上创建 Release 并附上 MSI（需要用户同意后再发布）。
-- 小改进：鼠标侧键返回；角色页出演作品“只看动画”筛选；搜索类型（书籍、游戏等）切换。
+- 发布：提高版本号（例如 1.1.0）重新打包，在 GitHub 上创建 Release 并附上 MSI（需要用户同意后再发布）。
+- 小改进：鼠标侧键返回；角色页出演作品“只看动画”筛选；索引页按标签（如“原创”“漫改”）浏览。
 
 ## 交接注意
 
