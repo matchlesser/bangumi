@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import dev.bangumi.demo.BuildInfo
 import dev.bangumi.demo.model.Subject
 import dev.bangumi.demo.ui.components.LoadMoreFooter
 import dev.bangumi.demo.ui.components.SubjectCard
@@ -81,7 +82,7 @@ fun SubjectListScreen(
                 )
                 // 说明数据来源，与以前的“离线示例数据”区分开。
                 Text(
-                    text = "数据来自 Bangumi 番组计划（bgm.tv），搜索需要联网。",
+                    text = "数据来自 Bangumi 番组计划（bgm.tv），搜索需要联网 · 版本 ${BuildInfo.VERSION}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

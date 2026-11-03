@@ -1,5 +1,6 @@
 package dev.bangumi.demo.data
 
+import dev.bangumi.demo.BuildInfo
 import dev.bangumi.demo.model.CharacterAppearance
 import dev.bangumi.demo.model.CharacterDetail
 import dev.bangumi.demo.model.CharacterSummary
@@ -99,7 +100,9 @@ class BangumiApi(private val client: HttpClient = HttpClient()) {
 }
 
 /**
- * Bangumi 要求非浏览器客户端带上“开发者 ID/应用名 (项目主页)”形式的 User-Agent，否则可能被拒绝。
- * 接口请求和图片下载（见 ImageLoading.kt）都使用它；internal 表示只在本模块内可见。
+ * Bangumi 要求非浏览器客户端带上“开发者 ID/应用名 (项目主页)”形式的 User-Agent，否则可能被拒绝；
+ * 需要分发的应用（本项目有 Windows 安装包）还要附上版本号，例如 matchlesser/bangumi/1.0.0 (...)。
+ * 版本号来自 Gradle 生成的 BuildInfo。接口请求和图片下载（见 ImageLoading.kt）都使用它；internal 表示只在本模块内可见。
  */
-internal const val BANGUMI_USER_AGENT = "matchlesser/bangumi (https://github.com/matchlesser/bangumi)"
+internal const val BANGUMI_USER_AGENT =
+    "matchlesser/bangumi/${BuildInfo.VERSION} (https://github.com/matchlesser/bangumi)"

@@ -4,9 +4,9 @@
 
 ## 当前停点
 
-最近完成的功能目标是 `BG-015 分页加载` 与 `BG-016 Esc 返回`：搜索结果和吐槽可以“加载更多”，在详情页按 Esc 返回上一页。此前完成的 `BG-014` 提供封面与头像，`BG-005`、`BG-013` 提供条目详情和角色详情。
+最近完成的功能目标是 `BG-007 Windows 安装包`：`packageMsi` 生成 1.0.0 版 MSI（内置精简 Java 运行环境），按当前用户安装，带开始菜单、桌面快捷方式和应用图标；已实际安装、运行搜索并卸载验证。此前完成搜索、详情、角色、图片、分页和 Esc 返回（BG-004、BG-005、BG-013～BG-016）。
 
-2026-11-03 起用户决定由助手全程负责开发（见 [项目约定](CONVENTIONS.md#协作方式)）。BG-015 与 BG-016 已作为一个带目标编号的提交保存在 Git 中并推送到 GitHub。下一步候选见“下次接续”；编号和命名规则见 [项目约定](CONVENTIONS.md)。
+2026-11-03 起用户决定由助手全程负责开发（见 [项目约定](CONVENTIONS.md#协作方式)）。BG-007 已作为一个带目标编号的提交保存在 Git 中并推送到 GitHub（安装包文件本身在 build 目录，不提交）。下一步候选见“下次接续”；编号和命名规则见 [项目约定](CONVENTIONS.md)。
 
 ## 目标索引
 
@@ -21,7 +21,7 @@
 | BG-004 | 真实 Bangumi 搜索 | 已完成 | 按回车或点击搜索获取真实动画条目，处理加载、空结果、错误与重试；14 个测试及真实搜索、错误显示验证通过 |
 | BG-005 | 真实 Bangumi 详情 | 已完成 | 条目详情显示评分分布、排名与收藏统计、主要人物、最新吐槽；各区块独立加载与重试；真实条目验证通过 |
 | BG-006 | 本地保存 | 候选 | 按需求选择本地标记或设置保存，重启后仍能读取，明确仅保存在本机 |
-| BG-007 | Windows 安装包 | 候选 | 确定打包方式，验证安装与启动 |
+| BG-007 | Windows 安装包 | 已完成 | MSI 1.0.0（59 MB，内置运行环境），按用户安装、开始菜单与桌面快捷方式、应用图标；安装、运行、联网搜索与卸载验证通过 |
 | BG-008 | Git 版本管理 | 进行中 | 仓库已初始化并关联 GitHub 远程仓库；首个提交（2026-09-20）包含 BG-002 为止的内容，之后每个目标在独立分支单独提交，提交说明以目标编号开头，经用户同意后快进合并到 main 并推送 |
 | BG-009 | 代码格式检查 | 候选 | 按需要选定工具并固定版本，提供可执行的格式检查命令 |
 | BG-010 | 账户登录 | 候选 | 确认认证方式与具体范围后实现登录流程 |
@@ -187,12 +187,30 @@
 - 本轮在真实窗口中也看到了 BG-014 的封面、角色头像、吐槽头像和角色立绘正常显示，BG-005、BG-013 的点击流程正常。
 - 验证边界：没有真实触发“加载更多失败”（由状态测试覆盖）；角色页出演作品小封面在打开约 4 秒时尚未全部出现，未继续等待确认；没有鼠标侧键返回；未验证不同显示缩放、极小窗口或其他平台。
 
+## BG-007 Windows 安装包
+
+### 完成内容
+
+- 打包工具：Compose 桌面插件调用 JDK 17 自带的 `jpackage` 生成 MSI，WiX 3.11 由插件首次打包时自动下载。命令 `.\gradlew.bat :composeApp:packageMsi`，产物 `composeApp/build/compose/binaries/main/msi/Bangumi-1.0.0.msi`。
+- 安装包配置（`composeApp/build.gradle.kts` 的 `nativeDistributions`）：名称 Bangumi、版本 1.0.0、厂商 matchlesser；按当前用户安装（`perUserInstall`，无需管理员权限）、可选目录、开始菜单“Bangumi”文件夹、桌面快捷方式；固定的 `upgradeUuid` 让新版本替换旧版本。名称和说明用英文，因为 WiX 默认代码页不支持中文。
+- 内置运行环境：`suggestRuntimeModules` 建议 `java.instrument`、`java.management`、`jdk.unsupported`，另外手动加入 `jdk.crypto.ec`（HTTPS 握手需要，静态分析发现不了）。打出的运行环境模块为 `java.base java.datatransfer java.xml java.prefs java.desktop java.instrument java.logging java.management jdk.crypto.ec jdk.unsupported`，约 62 MB。
+- 版本号：只在构建脚本的 `appVersion` 维护，`generateBuildInfo` 任务生成 `BuildInfo.VERSION` 供代码使用。按 Bangumi 对“需要分发的应用”的要求，User-Agent 改为 `matchlesser/bangumi/1.0.0 (项目主页)`；搜索页显示“版本 1.0.0”。
+- 图标：[tools/MakeIcon.java](../tools/MakeIcon.java) 绘制主题紫色背景上的白色电视（不使用 Bangumi 官方标志），生成 `composeApp/icons/app.ico`（16–256 像素六种尺寸，用于安装包、exe 和快捷方式）和 `desktopMain/resources/app-icon.png`（窗口标题栏和任务栏，在 `Main.kt` 中加载）。
+
+### 2026-11-03 验证结果
+
+- 构建与测试：`assemble`、`check` 成功，46 个测试通过；`packageMsi` 成功，MSI 约 59 MB。
+- 安装：`msiexec /i ... /qn` 静默安装，退出码 0；安装到 `%LOCALAPPDATA%\Bangumi`（约 113 MB），开始菜单 `Bangumi\Bangumi.lnk` 与桌面快捷方式存在，Windows Installer 中登记为 “Bangumi 1.0.0”。
+- 运行：启动安装后的 `Bangumi.exe`，标题栏显示新图标，搜索页显示“版本 1.0.0”；搜索“孤独摇滚”返回 19 部并显示封面，打开详情显示评分分布，吐槽（next.bgm.tv）正常加载——说明内置运行环境的 HTTPS 正常（[截图](images/bg-007-installed.jpg)）。
+- 卸载：`msiexec /x ... /qn` 退出码 0，快捷方式与登记信息已删除。因为验证时测试启动的程序仍在运行，安装目录中被占用的文件未能删除；关闭这些进程后手动删除了残留目录，最终没有安装目录、快捷方式、注册表项或进程残留。
+- 验证边界：没有通过双击 MSI 的图形界面安装（只验证了静默安装）；没有在未安装 Java 的另一台电脑上测试；没有代码签名，下载后运行时 Windows SmartScreen 可能提示“未知发布者”。
+
 ## 下次接续
 
 候选方向（尚未排定，由助手按用户意见选择）：
 
 - 本地保存（BG-006）：收藏或“想看”标记保存在本机，重启后仍在，明确不等于同步到 Bangumi 账户。
-- Windows 安装包（BG-007）：用 Compose 的打包任务生成安装程序，验证安装与启动。
+- 发布：在 GitHub 上创建 Release 并附上 MSI（需要用户同意后再发布）。
 - 小改进：鼠标侧键返回；角色页出演作品“只看动画”筛选；搜索类型（书籍、游戏等）切换。
 
 ## 交接注意

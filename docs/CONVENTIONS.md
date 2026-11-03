@@ -44,6 +44,8 @@
 - 版本上限：2026-11-03 核对，Ktor 3.3.3 以 Kotlin 2.2.21 构建，serialization 1.9.0 以 Kotlin 2.2.0 构建；Ktor 3.4 起和 serialization 1.10 起需要 Kotlin 2.3 以上。升级这些库时要先升级 Kotlin 与 Compose，并重新核对兼容性。
 - BG-014 引入图片库 Coil 3.3.0（`coil-compose`、`coil-network-ktor3`）：以 Kotlin 2.2.0 构建，依赖的 Compose、Ktor 低于本项目版本；3.4.0 起需要 Kotlin 2.3。选它而不是自己下载解码，是因为它已处理异步加载、取消、内存与磁盘缓存，且同时支持将来的移动端。
 - JSON 解析采用“取回文字 → `Json.decodeFromString` 手动解析”，未使用 Ktor 的 ContentNegotiation 插件，以便看清并单独测试转换步骤。
+- 打包（BG-007）：用 Compose 桌面插件的 `nativeDistributions` 生成 MSI（`packageMsi`），依赖 JDK 17 的 `jpackage`，WiX 由插件自动下载。安装包内置的运行环境只包含 `modules(...)` 列出的模块；新增依赖后先运行 `suggestRuntimeModules` 核对，并保留 `jdk.crypto.ec`（HTTPS 需要），改动后必须用安装后的程序实际联网验证。
+- 版本号只在 `composeApp/build.gradle.kts` 的 `appVersion` 维护（MSI 要求三段数字），代码通过生成的 `BuildInfo.VERSION` 读取；User-Agent 包含版本号。`upgradeUuid` 固定不变，保证新版本替换旧版本。安装包名称、说明等元数据使用英文（WiX 默认代码页不支持中文）。
 
 ## 代码组织
 
@@ -139,5 +141,7 @@
 2026-11-03（BG-005、BG-013 详情与导航）：页面增加到三层（搜索 → 条目 → 角色，角色还能跳回其他条目），采用自写的返回栈 `AppNavigator` 保存页面对象，而不是引入导航库；详情数据按区块用 `LoadState` 独立加载。吐槽只能使用非公开的 p1 接口，按“可失败的独立区块”处理。
 
 2026-11-03（BG-015、BG-016 分页与快捷键）：分页用“加载更多”按钮而不是无限滚动；Esc 返回在窗口级处理，使其不依赖页面焦点，导航器因此上移到桌面入口创建。
+
+2026-11-03（BG-007 安装包）：采用 MSI 并按当前用户安装，避免安装时需要管理员权限；应用图标自行绘制（`tools/MakeIcon.java`），不使用 Bangumi 官方标志；暂不做代码签名。
 
 后续仅记录会影响未来开发的决定、原因和适用范围，不把每次改动写成长期规范。

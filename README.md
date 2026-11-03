@@ -6,13 +6,14 @@
 
 ## 当前状态
 
-已完成 `BG-001`～`BG-005`、`BG-013`～`BG-016`：
+当前版本 1.0.0，已完成 `BG-001`～`BG-005`、`BG-007`、`BG-013`～`BG-016`：
 
 - 搜索：输入作品名称，按回车或点击“搜索”，从 Bangumi 获取真实的动画条目；每次显示 20 条，列表底部可“加载更多”；搜索中、无结果和失败时都有提示，失败后可以重试。
 - 条目详情：评分、排名、放送信息、收藏人数，10 档评分分布图，完整简介，主要人物（主角和配角，可展开全部角色），吐槽（每次 20 条，可加载更多）。
 - 角色详情：中文名、基本资料（性别、生日、血型等）、简介、声优、出演作品；点击出演作品可以打开该作品的详情。
 - 图片：搜索结果和详情页显示封面，角色和吐槽用户显示头像，角色详情显示立绘；图片会缓存，再次打开不必重新下载。
 - 页面之间用“← 返回”或按 Esc 逐层返回，返回后保留原页面的数据和滚动位置；各区块独立加载，一块失败只需重试那一块。
+- Windows 安装包：可以打包成 MSI，安装到当前用户目录（不需要管理员权限），带开始菜单、桌面快捷方式和应用图标；安装包内置 Java 运行环境，目标电脑不必安装 Java。打包方法见下文“打包 Windows 安装包”。
 
 早期的 3 条虚构示例数据现在只用于测试。具体验证记录见进度文档。
 
@@ -75,7 +76,7 @@
 ## 开发环境
 
 - 首个目标平台：Windows 桌面，使用 JVM。
-- 当前机器在 2026-09-14 已确认安装 JDK 17.0.10。
+- 当前机器在 2026-09-14 已确认安装 JDK 17.0.10（`JAVA_HOME` 指向 `C:\Program Files\Java\jdk-17`）。打包需要完整 JDK 自带的 `jpackage` 和 `jmods`，仅安装 JRE 不够。
 - Kotlin 与 Compose 编译器固定为 2.2.21，Compose Multiplatform 固定为 1.9.3，Gradle Wrapper 固定为 8.14.3。
 - 版本选择理由和官方兼容性参考见 [项目约定](docs/CONVENTIONS.md)。
 - 使用项目自带的 Gradle Wrapper，无需安装全局 Gradle。首次运行需要联网下载 Gradle 和依赖。
@@ -105,6 +106,18 @@ cd D:\Projects\workspace\bangumi
 ```
 
 已有 46 个测试（各接口的 JSON 转换与图片地址、分页、搜索与详情状态、返回栈与 Esc、文字格式化），都不联网；`check` 会执行桌面目标的测试任务；报告位于 `composeApp/build/reports/tests/desktopTest/index.html`。构建、测试、启动和界面查看的结果分别记录在 [docs/PROGRESS.md](docs/PROGRESS.md)。
+
+## 打包 Windows 安装包
+
+```powershell
+.\gradlew.bat :composeApp:packageMsi
+```
+
+安装包生成在 `composeApp\build\compose\binaries\main\msi\Bangumi-1.0.0.msi`（约 59 MB）。第一次打包会自动下载 WiX 打包工具，需要联网。双击 MSI 即可安装，默认装到 `%LOCALAPPDATA%\Bangumi`，可在系统“已安装的应用”中卸载；卸载前请先关闭程序，否则正在使用的文件无法删除。
+
+- 版本号只在 `composeApp/build.gradle.kts` 的 `appVersion` 中修改；发布新版本时提高版本号，安装新包会替换旧版本。
+- 不想安装、只想得到可直接运行的文件夹时，可执行 `.\gradlew.bat :composeApp:createDistributable`，程序位于 `composeApp\build\compose\binaries\main\app\Bangumi\Bangumi.exe`。
+- 应用图标由 `java tools/MakeIcon.java` 生成（需要 JDK 17），修改图案后重新运行即可。
 
 ## 开始新会话
 
