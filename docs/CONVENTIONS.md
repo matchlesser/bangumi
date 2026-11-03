@@ -35,7 +35,10 @@
 - Kotlin 与 Compose 编译器使用 2.2.21，Compose Multiplatform 使用 1.9.3，Gradle Wrapper 使用 8.14.3。插件版本在根构建脚本中固定，Gradle 版本与发行包 SHA-256 在 Wrapper 配置中固定。
 - 选择理由：Kotlin 2.2.21 的官方 Gradle 兼容范围覆盖 8.14 系列，Compose 使用 Kotlin 2.x 的编译器插件，现有 JDK 17 满足桌面运行要求；这组配置已在本机完成构建与启动，便于保持学习环境一致。
 - 兼容性参考：[Kotlin Gradle 配置](https://kotlinlang.org/docs/gradle-configure-project.html)、[Compose 平台与版本兼容性](https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-compatibility-and-versioning.html)。
-- 当前引入界面所需的 Compose 库，以及 BG-002 所需的 `kotlin("test")` 测试库（版本随 Kotlin 插件固定）；尚未添加网络、持久化或依赖注入库。
+- 当前引入界面所需的 Compose 库和 `kotlin("test")` 测试库（版本随 Kotlin 插件固定）；尚未添加持久化或依赖注入库。
+- BG-004 引入网络与 JSON：Ktor 3.3.3（`ktor-client-core` 放在 `commonMain`，`ktor-client-cio` 引擎放在 `desktopMain`）、kotlinx-serialization-json 1.9.0 及版本与 Kotlin 相同的 serialization 插件、kotlinx-coroutines-core 1.10.2；测试使用 kotlinx-coroutines-test 1.10.2。依赖版本直接写在 `composeApp/build.gradle.kts`。
+- 版本上限：2026-11-03 核对，Ktor 3.3.3 以 Kotlin 2.2.21 构建，serialization 1.9.0 以 Kotlin 2.2.0 构建；Ktor 3.4 起和 serialization 1.10 起需要 Kotlin 2.3 以上。升级这些库时要先升级 Kotlin 与 Compose，并重新核对兼容性。
+- JSON 解析采用“取回文字 → `Json.decodeFromString` 手动解析”，未使用 Ktor 的 ContentNegotiation 插件，以便看清并单独测试转换步骤。
 
 ## 代码组织
 
@@ -44,14 +47,16 @@
 | 位置 | 职责 |
 | --- | --- |
 | `commonMain/.../model/` | 条目等数据模型 |
-| `commonMain/.../data/` | 示例数据、接口调用和数据转换 |
+| `commonMain/.../data/` | 接口调用和数据转换（当前为 `BangumiApi.kt`） |
 | `commonMain/.../ui/screens/` | 页面布局和事件连接 |
 | `commonMain/.../ui/components/` | 被多个页面使用的界面组件 |
 | `commonMain/.../ui/state/` | 页面状态及操作处理 |
 | `commonMain/.../ui/theme/` | 统一主题和设计常量 |
 | `desktopMain/` | 桌面程序入口、窗口及平台能力 |
 
-这里的 `...` 表示 `kotlin/dev/bangumi/demo`。`ui/state` 已在 BG-002 中创建，保存输入与筛选状态；`commonTest` 保存共享逻辑测试，由当前桌面目标执行。
+这里的 `...` 表示 `kotlin/dev/bangumi/demo`。`ui/state` 保存输入、搜索结果与选中状态；`commonTest` 保存共享逻辑测试和测试用的示例数据，由当前桌面目标执行。
+
+状态对象通过构造参数接收“怎样搜索”的函数（`suspend (String) -> List<Subject>`），而不是直接创建网络客户端：运行时由桌面入口传入 `BangumiApi` 的方法，测试时传入返回固定结果的 Lambda。只有一种实现时不额外定义接口。
 
 第一阶段不必预先建立所有目录或接口。需要从示例数据切换到网络数据、替换实现或隔离平台差异时，再引入相应抽象。
 
@@ -61,7 +66,8 @@
 - 类型允许空值时显式处理，避免用 `!!` 隐藏数据缺失问题。
 - 类和界面函数使用清晰的名称，例如 `Subject`、`SubjectList`；普通函数和变量使用小驼峰命名。
 - 所有代码都需要详细注释，说明职责、参数含义、主要处理过程与设计原因；新的 Kotlin 概念用 Java 作必要对照。避免只逐句复述语法。
-- 接入网络后，通过协程执行异步工作，避免阻塞 UI；取消操作不应被误报为普通请求失败。
+- 网络请求写成 `suspend` 函数，由界面通过 `rememberCoroutineScope().launch` 启动，避免阻塞 UI；捕获异常时先单独重新抛出 `CancellationException`，取消操作不误报为请求失败。
+- 访问 Bangumi 接口时必须带项目的 User-Agent（见 `BangumiApi`）；接口返回的原始数据类只在数据层内部使用，界面只接触 `Subject` 等模型。
 - 遵循 `.editorconfig`。引入格式检查工具时，把版本及命令加入构建配置和 README。
 
 ## 界面一致性
@@ -70,12 +76,12 @@
 - 常用颜色、字体、间距、圆角集中维护；页面引用主题或公共常量。
 - 第一个经过确认的演示页面作为后续页面的样式参考，形成基准后在这里记录对应文件和必要截图。
 - 支持键盘操作及清晰的焦点反馈，避免只有颜色才能区分状态。
-- 接入真实数据后，为加载、空结果、错误和重试提供一致的表现。
+- 加载、空结果、错误和重试使用列表页中的 `StatusMessage` 统一排版（居中标题、说明、可选按钮，加载时显示转圈指示器）；新页面需要同类提示时沿用这种表现。
 - 当前演示页为 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)，使用 Material 3 默认浅色主题和统一条目卡片。主题与间距集中在 [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt)。
 - 详情页 [SubjectDetailScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectDetailScreen.kt) 沿用列表页的外边距与最大内容宽度；新页面默认采用同样的外层布局。
 - 评分统一使用 [ScoreLabel.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ScoreLabel.kt)，不在页面中重复“暂无评分”判断。
 - 可点击的卡片在获得键盘焦点时显示主题色描边（宽度为 `AppDimensions.focusBorderWidth`），让焦点不只靠底色深浅区分；新增可点击卡片沿用此做法。
-- 已保存 [首个窗口截图](images/first-window.jpg)、[详情页截图](images/bg-003-detail.jpg) 和 [卡片焦点截图](images/bg-003-card-focus.jpg) 供查看；长期品牌色和视觉基准仍待后续反馈确定。
+- 已保存 [首个窗口截图](images/first-window.jpg)、[详情页截图](images/bg-003-detail.jpg)、[卡片焦点截图](images/bg-003-card-focus.jpg)、[搜索结果截图](images/bg-004-search-results.jpg) 和 [搜索失败截图](images/bg-004-search-error.jpg) 供查看；长期品牌色和视觉基准仍待后续反馈确定。
 
 ## 验证与版本管理
 
@@ -109,5 +115,7 @@
 2026-09-21（解释设计原因）：结对步骤先解释需求、数据流、职责边界和方案取舍，再进入语法及修改位置，避免把学习过程退化为机械照抄操作。
 
 2026-11-02（BG-003 界面复用）：评分抽成共用的 `ScoreLabel`，可点击卡片获得焦点时加主题色描边，详情页沿用列表页布局；目的是让列表和详情的显示规则只维护一处，并满足“焦点不只靠颜色区分”的要求。
+
+2026-11-03（BG-004 网络与数据来源）：列表页改为按回车搜索真实 Bangumi 动画（用户决定），示例数据只用于测试。网络与 JSON 选用 Ktor + kotlinx.serialization，版本受 Kotlin 2.2.21 限制；平台引擎放在 `desktopMain`，为将来移动端换引擎保留边界。
 
 后续仅记录会影响未来开发的决定、原因和适用范围，不把每次改动写成长期规范。

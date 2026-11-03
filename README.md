@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-离线桌面 demo 已完成 `BG-001`～`BG-003`：窗口显示 3 条虚构示例番剧，可按名称即时筛选并清空恢复；点击卡片（或用 Tab 聚焦后按 Enter）进入详情页，查看名称、评分和完整简介，返回后保留原来的筛选。下一个候选目标是接入真实 Bangumi 搜索。具体验证记录见进度文档。
+已完成 `BG-001`～`BG-004`：在窗口中输入作品名称，按回车或点击“搜索”，从 Bangumi 获取真实的动画条目（每次最多 20 条），搜索中、无结果和失败时都有提示，失败后可以重试；点击卡片（或用 Tab 聚焦后按 Enter）进入详情页，查看名称、评分和完整简介，返回后保留搜索结果。早期的 3 条虚构示例数据现在只用于测试。具体验证记录见进度文档。
 
 第一次接触项目开发，可以从 [docs/FIRST_STEPS.md](docs/FIRST_STEPS.md) 开始，按说明运行并阅读代码。
 
@@ -73,6 +73,7 @@
 - Kotlin 与 Compose 编译器固定为 2.2.21，Compose Multiplatform 固定为 1.9.3，Gradle Wrapper 固定为 8.14.3。
 - 版本选择理由和官方兼容性参考见 [项目约定](docs/CONVENTIONS.md)。
 - 使用项目自带的 Gradle Wrapper，无需安装全局 Gradle。首次运行需要联网下载 Gradle 和依赖。
+- 程序运行时需要联网访问 `api.bgm.tv` 才能搜索；自动测试不联网。
 
 ## 启动与构建
 
@@ -97,7 +98,7 @@ cd D:\Projects\workspace\bangumi
 .\gradlew.bat :composeApp:check
 ```
 
-已有 10 个筛选与状态逻辑测试，`check` 会执行桌面目标的测试任务；报告位于 `composeApp/build/reports/tests/desktopTest/index.html`。构建、测试、启动和界面查看的结果分别记录在 [docs/PROGRESS.md](docs/PROGRESS.md)。关键词筛选的阅读顺序和 Java 对照见 [docs/BG-002.md](docs/BG-002.md)。
+已有 14 个测试（JSON 转换与搜索状态），`check` 会执行桌面目标的测试任务；报告位于 `composeApp/build/reports/tests/desktopTest/index.html`。构建、测试、启动和界面查看的结果分别记录在 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 ## 开始新会话
 

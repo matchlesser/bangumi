@@ -73,13 +73,16 @@ fun SubjectCard(
                 ScoreLabel(score = subject.score)
             }
             // 简介最多显示两行，超出部分用省略号表示；点击卡片可在详情页查看全文。
-            Text(
-                text = subject.summary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // 部分真实条目没有简介，此时不画这一行，避免卡片里留一块空白。
+            if (subject.summary.isNotBlank()) {
+                Text(
+                    text = subject.summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

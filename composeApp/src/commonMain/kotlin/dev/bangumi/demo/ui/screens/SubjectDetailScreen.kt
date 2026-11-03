@@ -52,7 +52,7 @@ fun SubjectDetailScreen(
                 Text("← 返回列表")
             }
 
-            // 标题区：名称、评分，以及与列表页一致的示例数据说明，避免误以为是真实 Bangumi 数据。
+            // 标题区：名称、评分，以及数据来源说明和 Bangumi 条目编号。
             Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
                 Text(
                     text = subject.name,
@@ -61,20 +61,20 @@ fun SubjectDetailScreen(
                 // 与列表卡片共用评分组件，“暂无评分”等规则只维护一处。
                 ScoreLabel(score = subject.score)
                 Text(
-                    text = "离线示例条目：名称、评分与简介均为虚构，未连接 Bangumi。",
+                    text = "数据来自 Bangumi 番组计划（bgm.tv），条目编号 ${subject.id}。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            // 简介区：列表卡片只显示两行预览，这里显示全文。
+            // 简介区：列表卡片只显示两行预览，这里显示全文；没有简介时明确提示。
             Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
                 Text(
                     text = "简介",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = subject.summary,
+                    text = if (subject.summary.isBlank()) "暂无简介" else subject.summary,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }

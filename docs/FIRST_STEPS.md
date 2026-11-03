@@ -4,6 +4,8 @@
 
 实际构建、启动和界面检查结果以 [PROGRESS.md](PROGRESS.md) 为准。
 
+> 历史说明：本文描述 BG-001 时的离线版本。自 `BG-004` 起，窗口改为搜索真实 Bangumi 数据，`Main` 不再传入示例数据，示例数据已移到测试目录；下文的文件职责、数据路径和“可选的小改动”只对应当时的代码，可在 Git 提交 `5c8743b` 及更早版本中查看。
+
 下面是本项目实际运行后的窗口：
 
 ![首个离线桌面窗口](images/first-window.jpg)
@@ -35,7 +37,7 @@ cd D:\Projects\workspace\bangumi
 | 文件 | 负责什么 |
 | --- | --- |
 | [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt) | 定义一部番剧包含哪些字段 |
-| [SampleSubjects.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt) | 创建 3 条示例数据 |
+| [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt) | 创建 3 条示例数据 |
 | [Main.kt](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt) | 程序入口，打开窗口并把数据交给界面 |
 | [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt) | 应用共享界面入口，应用统一主题 |
 | [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) | 显示页面标题和番剧列表 |
@@ -112,7 +114,7 @@ Kotlin 的 `if` 可以产生一个值，类似 Java 的 `条件 ? 值一 : 值�
 
 ## 可选的小改动
 
-把 [SampleSubjects.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt) 中第一部作品的名称改成自己喜欢的名字，保存文件，关闭旧窗口，再运行启动命令。
+把 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt) 中第一部作品的名称改成自己喜欢的名字，保存文件，关闭旧窗口，再运行启动命令。
 
 验证方式：窗口里的第一部作品名称应随之变化。这份工程没有配置自动热更新，所以保存文件后需要重新启动。
 

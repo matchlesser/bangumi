@@ -2,7 +2,9 @@
 
 > 本文档来源于实际项目代码阅读过程中遇到的问题，用于记录 Kotlin 中容易忘记、容易误解以及值得长期积累的知识。
 >
-> 当前示例来自 Windows 桌面入口 [Main.kt](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt)、数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、界面中枢 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与页面 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)。项目使用 Kotlin 2.2.21 与 Compose Multiplatform 1.9.3。
+> 当前示例来自 Windows 桌面入口 [Main.kt](../composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt)、数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、界面中枢 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与页面 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)。项目使用 Kotlin 2.2.21 与 Compose Multiplatform 1.9.3。
+>
+> 笔记中的代码片段保留记录时的版本。例如 `App(subjects = sampleSubjects)` 是 BG-001～003 的写法；BG-004 起入口改为 `App(searchSubjects = api::searchSubjects)`，示例数据移到测试目录。
 
 ## 目录
 
@@ -97,7 +99,7 @@ application：应用运行环境
             └── App：窗口中的 Compose 界面
 ```
 
-在入口代码阅读完成后，进一步深入阅读了数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与界面总控 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)，并在 `BG-003 示例条目详情` 准备阶段阅读了 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中的 `LazyColumn.items` 列表渲染与选中状态设计。
+在入口代码阅读完成后，进一步深入阅读了数据模型 [Subject.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt)、示例数据 [SampleSubjects.kt](../composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt)、状态管理 [SubjectListState.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/state/SubjectListState.kt) 与界面总控 [App.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/App.kt)，并在 `BG-003 示例条目详情` 准备阶段阅读了 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt) 中的 `LazyColumn.items` 列表渲染与选中状态设计。
 
 本轮学习完成了一系列核心概念的攻坚：
 - 为什么需要 `remember` 及其充当“函数式 UI 成员变量”的意义；
@@ -1889,7 +1891,7 @@ fun items(...) {
 | --- | --- | --- |
 | 2026-09-18 | 新建文档；整理顶层 `main`、表达式函数体、Lambda、函数类型、高阶函数、函数引用、命名/默认参数、尾随 Lambda、带接收者 Lambda，以及 Compose `application`/`Window`/`content` 的阅读方式。 | 阅读 `composeApp/src/desktopMain/kotlin/dev/bangumi/demo/Main.kt`，围绕 `fun main() = application { ... }`、`onCloseRequest = ::exitApplication` 和 `content` 展开讨论。 |
 | 2026-09-19 | 新增 `data class`（数据类）、`val` 只读属性与 `Type?` 可空类型；补充编译器生成方法、Java 对照（`record`/Lombok/POJO）、`==` 比较机制与不可变性设计。 | 阅读 `composeApp/src/commonMain/kotlin/dev/bangumi/demo/model/Subject.kt`，梳理 `model` 目录职责与数据类原理。 |
-| 2026-09-19 | 新增 `val/var` 变量声明结构、类型推导、Java 10 `var` 对比误区澄清，以及只读列表 `listOf(...)` 的说明。 | 阅读 `composeApp/src/commonMain/kotlin/dev/bangumi/demo/data/SampleSubjects.kt`，梳理 `val sampleSubjects: List<Subject>` 的语法构成与 Java 对照。 |
+| 2026-09-19 | 新增 `val/var` 变量声明结构、类型推导、Java 10 `var` 对比误区澄清，以及只读列表 `listOf(...)` 的说明。 | 阅读 `composeApp/src/commonTest/kotlin/dev/bangumi/demo/data/SampleSubjects.kt`，梳理 `val sampleSubjects: List<Subject>` 的语法构成与 Java 对照。 |
 | 2026-09-19 | 补充响应式状态（`mutableStateOf`）、状态记忆（`remember`）、绑定实例的方法引用（`state::updateQuery`）、受控组件（Controlled Component）机制，以及从物理按键到界面重组刷新的三阶段完整闭环生命周期。 | 阅读 `App.kt`、`SubjectListState.kt` 与 `SubjectListScreen.kt`，系统梳理 GUI 事件驱动与响应式状态流转心智模型。 |
 | 2026-09-20 | 辨析函数类型声明 `(Type) -> ReturnType` 与 Lambda 实现 `{ param -> body }` 的本质区别（小括号与类型名 vs 大括号与变量名/实现代码）。 | 阅读 `SubjectListScreen.kt`，围绕 Lambda 箭头语法与函数类型的认知混淆展开讨论。 |
 | 2026-09-21 | 新增属性委托 `by`（`getValue`/`setValue` 读写解耦）、初始为 null 时的泛型类型推断与 `Nothing?` 陷阱；解构 `LazyListScope.items` 源码，澄清单表达式函数体 `=`、高阶函数形参直接调用与同名具名参数碰撞产生的“自我调用”假象；阐明 `LazyColumn` 按需懒加载与普通 `for` 循环的本质差异；剖析 `if` 表达式返回 Lambda 导致双层大括号嵌套 `{ { ... } }` 的视觉撞车原因与去糖化写法。 | 阅读 `SubjectListState.kt` 与 `SubjectListScreen.kt`，系统解析 `by mutableStateOf<Subject?>(null)` 与 `items` 源码底层逻辑。 |
