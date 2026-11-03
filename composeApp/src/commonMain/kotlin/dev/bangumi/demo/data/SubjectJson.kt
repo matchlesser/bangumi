@@ -42,6 +42,7 @@ fun parseSubjectDetail(text: String): SubjectDetail {
             onHold = collection?.onHold ?: 0,
             dropped = collection?.dropped ?: 0,
         ),
+        imageUrl = imageUrl(dto.images?.common),
     )
 }
 
@@ -58,6 +59,7 @@ fun parseSubjectCharacters(text: String): List<CharacterSummary> {
                 name = item.name,
                 relation = item.relation ?: "",
                 voiceActor = item.actors.firstOrNull()?.name,
+                imageUrl = imageUrl(item.images?.grid),
             )
         }
         // sortedBy 是稳定排序：排序键相同的元素保持原来的先后顺序。
@@ -87,6 +89,7 @@ fun parseSubjectComments(text: String): SubjectComments {
                 rate = item.rate?.takeIf { it in 1..10 },
                 text = item.comment ?: "",
                 updatedAt = item.updatedAt ?: 0,
+                avatarUrl = imageUrl(item.user?.avatar?.small),
             )
         },
     )
@@ -115,6 +118,7 @@ private data class SubjectDto(
     val eps: Int? = null,
     val rating: RatingDto? = null,
     val collection: CollectionDto? = null,
+    val images: ImageSetDto? = null,
 )
 
 /** count 是“分数 → 人数”的映射，JSON 对象的键是字符串 "1"–"10"，所以用 Map<String, Int> 接收。 */
@@ -141,6 +145,7 @@ private data class SubjectCharacterDto(
     val name: String,
     val relation: String? = null,
     val actors: List<ActorDto> = emptyList(),
+    val images: ImageSetDto? = null,
 )
 
 @Serializable
@@ -167,4 +172,5 @@ private data class CommentDto(
 @Serializable
 private data class CommentUserDto(
     val nickname: String? = null,
+    val avatar: ImageSetDto? = null,
 )

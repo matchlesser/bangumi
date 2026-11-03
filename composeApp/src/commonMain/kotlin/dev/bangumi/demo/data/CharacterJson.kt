@@ -26,6 +26,7 @@ fun parseCharacterDetail(text: String): CharacterDetail {
         profile = entries.filter { it.label != "简体中文名" && it.label != "引用来源" && it.value.isNotBlank() },
         collects = dto.stat?.collects ?: 0,
         comments = dto.stat?.comments ?: 0,
+        imageUrl = imageUrl(dto.images?.medium),
     )
 }
 
@@ -38,6 +39,8 @@ fun parseCharacterAppearances(text: String): List<CharacterAppearance> {
             name = preferChineseName(item.name, item.nameCn),
             type = subjectTypeLabel(item.type),
             relation = item.staff ?: "",
+            // 这个接口只给原图地址（可能几百 KB），列表中换成 100px 宽的缩略图。
+            imageUrl = resizedImageUrl(item.image, width = 100),
         )
     }
 }
@@ -61,6 +64,7 @@ private data class CharacterDto(
     val summary: String? = null,
     val infobox: List<InfoboxItemDto> = emptyList(),
     val stat: CharacterStatDto? = null,
+    val images: ImageSetDto? = null,
 )
 
 /** value 可能是字符串也可能是列表，用 JsonElement 先原样接收，再由 infoboxValueText 处理。 */
@@ -83,6 +87,7 @@ private data class AppearanceDto(
     @SerialName("name_cn") val nameCn: String? = null,
     val type: Int? = null,
     val staff: String? = null,
+    val image: String? = null,
 )
 
 @Serializable

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,6 +21,7 @@ import dev.bangumi.demo.ui.components.ClickableCard
 import dev.bangumi.demo.ui.components.DetailPage
 import dev.bangumi.demo.ui.components.DetailSection
 import dev.bangumi.demo.ui.components.LoadStateContent
+import dev.bangumi.demo.ui.components.RemoteImage
 import dev.bangumi.demo.ui.components.SecondaryText
 import dev.bangumi.demo.ui.components.TagLabel
 import dev.bangumi.demo.ui.components.formatCount
@@ -28,7 +30,7 @@ import dev.bangumi.demo.ui.state.LoadState
 import dev.bangumi.demo.ui.theme.AppDimensions
 
 /**
- * 角色详情页：名字、收藏统计、基本资料、简介、声优、出演作品。
+ * 角色详情页：立绘、名字、收藏统计、基本资料、简介、声优、出演作品。
  * 点击出演作品会打开该作品的条目详情，因此可以在条目和角色之间来回浏览。
  *
  * @param onSubjectClick 点击出演作品时调用。
@@ -42,20 +44,44 @@ fun CharacterDetailScreen(
     onSubjectClick: (CharacterAppearance) -> Unit,
 ) {
     DetailPage(scrollState = scrollState, onBack = onBack) {
-        // 有中文名时以中文名为标题、原名为副标题；资料加载前先显示条目页带来的名字。
+        // 有中文名时以中文名为标题、原名为副标题；资料加载前先显示条目页带来的名字和立绘占位。
         val detail = (state.detail as? LoadState.Success)?.data
-        Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
-            Text(
-                text = detail?.chineseName ?: detail?.name ?: state.title,
-                style = MaterialTheme.typography.headlineMedium,
+
+        // 头部：左侧立绘，右侧名字、收藏统计和基本资料。
+        Row(horizontalArrangement = Arrangement.spacedBy(AppDimensions.largeSpacing)) {
+            // 立绘多为竖长图，裁切时保留上方（TopCenter），避免把脸裁掉。
+            RemoteImage(
+                url = detail?.imageUrl,
+                contentDescription = "角色图片",
+                modifier = Modifier.size(AppDimensions.detailCoverWidth, AppDimensions.detailCoverHeight),
+                shape = MaterialTheme.shapes.medium,
+                alignment = Alignment.TopCenter,
             )
-            if (detail?.chineseName != null) {
-                SecondaryText(detail.name)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+            ) {
+                Text(
+                    text = detail?.chineseName ?: detail?.name ?: state.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                if (detail?.chineseName != null) {
+                    SecondaryText(detail.name)
+                }
+                if (detail != null) {
+                    CharacterInfo(detail)
+                }
             }
         }
 
+        // 简介与头部资料来自同一个接口，一起显示加载中或失败。
         LoadStateContent(state = state.detail, onRetry = onRetry) { loaded ->
-            CharacterInfo(loaded)
+            DetailSection(title = "简介") {
+                Text(
+                    text = if (loaded.summary.isBlank()) "暂无简介" else loaded.summary,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
         }
 
         DetailSection(title = "声优") {
@@ -75,24 +101,16 @@ fun CharacterDetailScreen(
     }
 }
 
-/** 收藏统计、数据来源、基本资料和简介。 */
+/** 收藏统计、数据来源和基本资料，显示在立绘右侧。 */
 @Composable
 private fun CharacterInfo(detail: CharacterDetail) {
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.largeSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing)) {
         SecondaryText(
             "收藏 ${formatCount(detail.collects)} 人 · 吐槽 ${formatCount(detail.comments)} 条 · " +
                 "数据来自 Bangumi 番组计划（bgm.tv），角色编号 ${detail.id}。",
         )
         if (detail.profile.isNotEmpty()) {
-            DetailSection(title = "基本资料") {
-                ProfileTable(detail.profile)
-            }
-        }
-        DetailSection(title = "简介") {
-            Text(
-                text = if (detail.summary.isBlank()) "暂无简介" else detail.summary,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            ProfileTable(detail.profile)
         }
     }
 }
@@ -136,10 +154,19 @@ private fun AppearanceList(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
-                    modifier = Modifier.padding(AppDimensions.mediumSpacing),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+                    modifier = Modifier.padding(
+                        horizontal = AppDimensions.mediumSpacing,
+                        vertical = AppDimensions.smallSpacing,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // 作品名就在旁边，小封面是装饰性图片。
+                    RemoteImage(
+                        url = appearance.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(AppDimensions.thumbnailCoverWidth, AppDimensions.thumbnailCoverHeight),
+                    )
                     Text(
                         text = appearance.name,
                         modifier = Modifier.weight(1f),

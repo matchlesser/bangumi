@@ -26,6 +26,10 @@ kotlin {
             implementation("io.ktor:ktor-client-core:3.3.3")
             // JSON 文本与 Kotlin 对象互相转换，配合上面的 serialization 插件使用。
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+            // 图片加载（Coil）：异步下载、解码、内存与磁盘缓存；network-ktor3 让它复用上面的 Ktor 下载图片。
+            // 3.3.0 以 Kotlin 2.2.0 构建，依赖的 Compose 1.8.2、Ktor 3.1.0 都不高于本项目版本；3.4.0 起需要 Kotlin 2.3。
+            implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+            implementation("io.coil-kt.coil3:coil-network-ktor3:3.3.0")
         }
         commonTest.dependencies {
             // 使用与项目 Kotlin 插件同版本的测试库；共享测试会在当前 desktop JVM 目标上运行。

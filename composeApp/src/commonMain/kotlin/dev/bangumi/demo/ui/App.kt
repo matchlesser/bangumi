@@ -9,7 +9,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import coil3.compose.setSingletonImageLoaderFactory
 import dev.bangumi.demo.data.BangumiApi
+import dev.bangumi.demo.data.createImageLoader
 import dev.bangumi.demo.ui.screens.CharacterDetailScreen
 import dev.bangumi.demo.ui.screens.SubjectDetailScreen
 import dev.bangumi.demo.ui.screens.SubjectListScreen
@@ -27,6 +29,9 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun App(api: BangumiApi) {
+    // 注册全局图片加载器（下载时带 User-Agent，并启用缓存），之后各页面的图片都由它加载。
+    setSingletonImageLoaderFactory(::createImageLoader)
+
     // remember 在重组时保留同一个对象；App 一直显示，所以搜索状态和返回栈在切换页面时都不会丢失。
     val searchState = remember(api) { SubjectListState(api::searchSubjects) }
     val navigator = remember(api) { AppNavigator(api) }

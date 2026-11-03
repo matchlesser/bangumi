@@ -23,6 +23,7 @@ fun parseSearchResponse(text: String): List<Subject> {
             name = preferChineseName(item.name, item.nameCn),
             score = if (score == null || score == 0.0) null else score,
             summary = item.summary ?: "",
+            imageUrl = imageUrl(item.images?.small),
         )
     }
 }
@@ -67,6 +68,7 @@ private data class SearchItem(
     @SerialName("name_cn") val nameCn: String? = null,
     val summary: String? = null,
     val rating: SearchRating? = null,
+    val images: ImageSetDto? = null,
 )
 
 /** 评分信息中我们只取十分制的 score。 */

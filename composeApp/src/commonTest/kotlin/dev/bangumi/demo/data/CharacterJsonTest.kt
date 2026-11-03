@@ -27,12 +27,18 @@ class CharacterJsonTest {
                 { "key": "血型", "value": "O型" },
                 { "key": "引用来源", "value": "wiki" }
               ],
-              "stat": { "comments": 393, "collects": 1969 }
+              "stat": { "comments": 393, "collects": 1969 },
+              "images": {
+                "grid": "https://lain.bgm.tv/pic/crt/g/b1/9c/87968_crt_z9LaF.jpg",
+                "medium": "https://lain.bgm.tv/r/400/pic/crt/l/b1/9c/87968_crt_z9LaF.jpg"
+              }
             }
         """.trimIndent()
 
         val detail = parseCharacterDetail(text)
 
+        // 角色页立绘取 images.medium（400px 宽）。
+        assertEquals("https://lain.bgm.tv/r/400/pic/crt/l/b1/9c/87968_crt_z9LaF.jpg", detail.imageUrl)
         assertEquals("後藤ひとり", detail.name)
         assertEquals("后藤一里", detail.chineseName)
         assertEquals("本作の主人公。", detail.summary)
@@ -62,21 +68,30 @@ class CharacterJsonTest {
         assertEquals(emptyList(), detail.profile)
         assertEquals("", detail.summary)
         assertEquals(0, detail.collects)
+        assertNull(detail.imageUrl)
     }
 
+    // 出演作品的 image 是原图地址，转换为 100px 宽的缩略图；空字符串为 null。
     @Test
-    fun parsesAppearancesWithTypeLabelAndChineseName() {
+    fun parsesAppearancesWithTypeLabelChineseNameAndThumbnail() {
         val text = """
             [
               { "id": 328609, "type": 2, "name": "ぼっち・ざ・ろっく！", "name_cn": "孤独摇滚！", "staff": "主角", "image": "" },
-              { "id": 241088, "type": 1, "name": "ぼっち・ざ・ろっく！", "name_cn": "", "staff": "主角" }
+              { "id": 241088, "type": 1, "name": "ぼっち・ざ・ろっく！", "name_cn": "", "staff": "主角",
+                "image": "https://lain.bgm.tv/pic/cover/l/45/dc/241088_hOp6G.jpg" }
             ]
         """.trimIndent()
 
         assertEquals(
             listOf(
-                CharacterAppearance(subjectId = 328609, name = "孤独摇滚！", type = "动画", relation = "主角"),
-                CharacterAppearance(subjectId = 241088, name = "ぼっち・ざ・ろっく！", type = "书籍", relation = "主角"),
+                CharacterAppearance(subjectId = 328609, name = "孤独摇滚！", type = "动画", relation = "主角", imageUrl = null),
+                CharacterAppearance(
+                    subjectId = 241088,
+                    name = "ぼっち・ざ・ろっく！",
+                    type = "书籍",
+                    relation = "主角",
+                    imageUrl = "https://lain.bgm.tv/r/100/pic/cover/l/45/dc/241088_hOp6G.jpg",
+                ),
             ),
             parseCharacterAppearances(text),
         )

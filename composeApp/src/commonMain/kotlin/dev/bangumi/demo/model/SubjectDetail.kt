@@ -12,6 +12,7 @@ package dev.bangumi.demo.model
  * @param date 放送或发售日期，例如 "2022-10-08"；未知时为 null。
  * @param platform 平台，例如 "TV"、"剧场版"；未知时为 null。
  * @param episodes 话数；未知时为 null。
+ * @param imageUrl 详情页用的封面地址（约 400px 宽）；没有封面时为 null。
  */
 data class SubjectDetail(
     val id: Int,
@@ -26,6 +27,7 @@ data class SubjectDetail(
     val platform: String?,
     val episodes: Int?,
     val collection: SubjectCollection,
+    val imageUrl: String? = null,
 )
 
 /** 收藏人数统计：想看、看过、在看、搁置、抛弃。 */
@@ -44,6 +46,7 @@ data class SubjectCollection(
  * @param status 收藏状态文字，例如“看过”“在看”。
  * @param rate 用户打的分（1–10）；没有打分时为 null。
  * @param updatedAt 最后更新时间，Unix 秒。
+ * @param avatarUrl 用户头像地址（约 100px）；没有时为 null。
  */
 data class SubjectComment(
     val id: Long,
@@ -52,6 +55,7 @@ data class SubjectComment(
     val rate: Int?,
     val text: String,
     val updatedAt: Long,
+    val avatarUrl: String? = null,
 )
 
 /** 一页吐槽：total 是全部吐槽数量，items 是本次取回的最新若干条。 */

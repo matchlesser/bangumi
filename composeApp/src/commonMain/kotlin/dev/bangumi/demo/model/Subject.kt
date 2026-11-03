@@ -9,10 +9,12 @@ package dev.bangumi.demo.model
  * @param name 显示用的作品名：优先中文名，没有时为原名。
  * @param score 十分制评分，null 时由界面显示暂无评分。
  * @param summary 作品简介，可能为空字符串。
+ * @param imageUrl 列表用的小封面地址（约 200px 宽）；没有封面时为 null。默认值 null 让不关心图片的代码（如测试数据）可以省略它。
  */
 data class Subject(
     val id: Int,
     val name: String,
     val score: Double?,
     val summary: String,
+    val imageUrl: String? = null,
 )

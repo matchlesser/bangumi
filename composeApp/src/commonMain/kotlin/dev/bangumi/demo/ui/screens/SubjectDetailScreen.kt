@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +32,7 @@ import dev.bangumi.demo.ui.components.DetailPage
 import dev.bangumi.demo.ui.components.DetailSection
 import dev.bangumi.demo.ui.components.LoadStateContent
 import dev.bangumi.demo.ui.components.RatingDistribution
+import dev.bangumi.demo.ui.components.RemoteImage
 import dev.bangumi.demo.ui.components.ScoreLabel
 import dev.bangumi.demo.ui.components.SecondaryText
 import dev.bangumi.demo.ui.components.TagLabel
@@ -59,22 +62,37 @@ fun SubjectDetailScreen(
     onCharacterClick: (CharacterSummary) -> Unit,
 ) {
     DetailPage(scrollState = scrollState, onBack = onBack) {
-        // 详情加载完成前先显示上一页带来的标题；as? 在类型不符时得到 null，而不是抛出异常。
+        // 详情加载完成前先显示上一页带来的标题和封面占位；as? 在类型不符时得到 null，而不是抛出异常。
         val detail = (state.detail as? LoadState.Success)?.data
-        Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing)) {
-            Text(
-                text = detail?.name ?: state.title,
-                style = MaterialTheme.typography.headlineMedium,
+
+        // 头部：左侧封面，右侧标题、原名和基本信息。
+        Row(horizontalArrangement = Arrangement.spacedBy(AppDimensions.largeSpacing)) {
+            RemoteImage(
+                url = detail?.imageUrl,
+                contentDescription = "封面",
+                modifier = Modifier.size(AppDimensions.detailCoverWidth, AppDimensions.detailCoverHeight),
+                shape = MaterialTheme.shapes.medium,
             )
-            if (detail != null && detail.originalName != detail.name) {
-                SecondaryText(detail.originalName)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+            ) {
+                Text(
+                    text = detail?.name ?: state.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                if (detail != null && detail.originalName != detail.name) {
+                    SecondaryText(detail.originalName)
+                }
+                if (detail != null) {
+                    SubjectInfo(detail)
+                }
             }
         }
 
-        // 基本信息、评分分布和简介都来自同一个接口，一起显示加载中或失败。
+        // 评分分布和简介与头部信息来自同一个接口，一起显示加载中或失败。
         LoadStateContent(state = state.detail, onRetry = onRetry) { loaded ->
             Column(verticalArrangement = Arrangement.spacedBy(AppDimensions.largeSpacing)) {
-                SubjectInfo(loaded)
                 DetailSection(title = "评分分布") {
                     if (loaded.ratingTotal == 0) {
                         SecondaryText("还没有人评分。")
@@ -182,7 +200,7 @@ private fun CharacterList(
     }
 }
 
-/** 一个角色：名字、在本作中的定位、声优。 */
+/** 一个角色：圆形头像、名字、在本作中的定位、声优。 */
 @Composable
 private fun CharacterCard(
     character: CharacterSummary,
@@ -190,24 +208,37 @@ private fun CharacterCard(
     modifier: Modifier = Modifier,
 ) {
     ClickableCard(onClick = onClick, modifier = modifier) {
-        Column(
+        Row(
             modifier = Modifier.padding(AppDimensions.mediumSpacing),
-            verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+            horizontalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
-                verticalAlignment = Alignment.CenterVertically,
+            // 名字就在旁边，头像是装饰性图片。CircleShape 把方形的脸部裁切图剪成圆形。
+            RemoteImage(
+                url = character.imageUrl,
+                contentDescription = null,
+                modifier = Modifier.size(AppDimensions.avatarSize),
+                shape = CircleShape,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
             ) {
-                Text(
-                    text = character.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                if (character.relation.isNotBlank()) {
-                    TagLabel(text = character.relation)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = character.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    if (character.relation.isNotBlank()) {
+                        TagLabel(text = character.relation)
+                    }
                 }
+                SecondaryText(character.voiceActor?.let { "CV：$it" } ?: "暂无声优信息")
             }
-            SecondaryText(character.voiceActor?.let { "CV：$it" } ?: "暂无声优信息")
         }
     }
 }
@@ -234,6 +265,12 @@ private fun CommentList(comments: SubjectComments) {
                     horizontalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    RemoteImage(
+                        url = comment.avatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(AppDimensions.smallAvatarSize),
+                        shape = CircleShape,
+                    )
                     Text(text = comment.userName, style = MaterialTheme.typography.titleSmall)
                     TagLabel(text = comment.status)
                     if (comment.rate != null) {

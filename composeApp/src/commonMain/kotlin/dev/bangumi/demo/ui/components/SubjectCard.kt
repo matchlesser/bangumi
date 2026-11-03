@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,7 +18,7 @@ import dev.bangumi.demo.ui.theme.AppDimensions
 /**
  * 番剧信息卡片组件
  *
- * 显示单个番剧的核心信息：名称、评分和简介预览；完整简介留给详情页。
+ * 显示单个番剧的核心信息：封面、名称、评分和简介预览；完整简介留给详情页。
  * 卡片只上报“被点击”，不知道点击后显示什么页面，因此同一张卡片可以放进不同列表复用。
  *
  * @param subject 要显示的番剧数据对象
@@ -33,36 +34,47 @@ fun SubjectCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        // 垂直布局：标题行 + 简介文本
-        Column(
+        // 左侧封面，右侧文字（标题行 + 简介）。
+        Row(
             modifier = Modifier.padding(AppDimensions.mediumSpacing),
-            verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
+            horizontalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
         ) {
-            // 标题行：番剧名称 + 评分标签
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
-                verticalAlignment = Alignment.CenterVertically,
+            // 标题就在旁边，封面只是装饰，所以 contentDescription 传 null，读屏软件不重复朗读。
+            RemoteImage(
+                url = subject.imageUrl,
+                contentDescription = null,
+                modifier = Modifier.size(AppDimensions.listCoverWidth, AppDimensions.listCoverHeight),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppDimensions.smallSpacing),
             ) {
-                // 番剧名称，占据可用空间
-                Text(
-                    text = subject.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                // 评分显示规则集中在 ScoreLabel，详情页使用同一个组件。
-                ScoreLabel(score = subject.score)
-            }
-            // 简介最多显示两行，超出部分用省略号表示；点击卡片可在详情页查看全文。
-            // 部分真实条目没有简介，此时不画这一行，避免卡片里留一块空白。
-            if (subject.summary.isNotBlank()) {
-                Text(
-                    text = subject.summary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // 标题行：番剧名称 + 评分标签
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimensions.mediumSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // 番剧名称，占据可用空间
+                    Text(
+                        text = subject.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    // 评分显示规则集中在 ScoreLabel，详情页使用同一个组件。
+                    ScoreLabel(score = subject.score)
+                }
+                // 简介最多显示三行（与封面高度相近），超出部分用省略号表示；点击卡片可在详情页查看全文。
+                // 部分真实条目没有简介，此时不画这一行，避免卡片里留一块空白。
+                if (subject.summary.isNotBlank()) {
+                    Text(
+                        text = subject.summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

@@ -12,8 +12,9 @@ import kotlin.test.assertTrue
  */
 class SearchJsonTest {
 
+    // 列表封面取 images.small（200px 宽）。
     @Test
-    fun usesChineseNameScoreAndSummaryAndIgnoresExtraFields() {
+    fun usesChineseNameScoreSummaryAndSmallCoverAndIgnoresExtraFields() {
         val text = """
             {
               "data": [
@@ -24,7 +25,11 @@ class SearchJsonTest {
                   "name_cn": "孤独摇滚！",
                   "summary": "后藤一里组建乐队的故事。",
                   "date": "2022-10-08",
-                  "images": { "large": "https://lain.bgm.tv/pic/cover/l/e2/e7/328609_2EHLJ.jpg" },
+                  "images": {
+                    "small": "https://lain.bgm.tv/r/200/pic/cover/l/e2/e7/328609_2EHLJ.jpg",
+                    "common": "https://lain.bgm.tv/r/400/pic/cover/l/e2/e7/328609_2EHLJ.jpg",
+                    "large": "https://lain.bgm.tv/pic/cover/l/e2/e7/328609_2EHLJ.jpg"
+                  },
                   "tags": [ { "name": "音乐", "count": 9453 } ],
                   "rating": { "rank": 73, "total": 41530, "score": 8.4 }
                 }
@@ -36,24 +41,35 @@ class SearchJsonTest {
         """.trimIndent()
 
         assertEquals(
-            listOf(Subject(id = 328609, name = "孤独摇滚！", score = 8.4, summary = "后藤一里组建乐队的故事。")),
+            listOf(
+                Subject(
+                    id = 328609,
+                    name = "孤独摇滚！",
+                    score = 8.4,
+                    summary = "后藤一里组建乐队的故事。",
+                    imageUrl = "https://lain.bgm.tv/r/200/pic/cover/l/e2/e7/328609_2EHLJ.jpg",
+                ),
+            ),
             parseSearchResponse(text),
         )
     }
 
-    // 中文名为空字符串或缺失时都显示原名。
+    // 中文名为空字符串或缺失时都显示原名；封面为空字符串或缺失时为 null。
     @Test
-    fun fallsBackToOriginalNameWhenChineseNameIsMissing() {
+    fun fallsBackToOriginalNameAndMissingCoverWhenFieldsAreEmpty() {
         val text = """
             {
               "data": [
-                { "id": 1, "name": "Original A", "name_cn": "", "rating": { "score": 7.0 } },
+                { "id": 1, "name": "Original A", "name_cn": "", "rating": { "score": 7.0 }, "images": { "small": "" } },
                 { "id": 2, "name": "Original B", "rating": { "score": 6.5 } }
               ]
             }
         """.trimIndent()
 
-        assertEquals(listOf("Original A", "Original B"), parseSearchResponse(text).map { it.name })
+        val subjects = parseSearchResponse(text)
+
+        assertEquals(listOf("Original A", "Original B"), subjects.map { it.name })
+        assertEquals(listOf(null, null), subjects.map { it.imageUrl })
     }
 
     // 评分为 0、为 null 或整个 rating 缺失，都表示没有可显示的评分；简介缺失时为空字符串。

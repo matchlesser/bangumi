@@ -26,12 +26,18 @@ class SubjectJsonTest {
                 "count": { "1": 200, "2": 49, "3": 51, "4": 112, "5": 378,
                            "6": 1426, "7": 5250, "8": 14390, "9": 12653, "10": 7021 }
               },
-              "collection": { "on_hold": 1213, "dropped": 628, "wish": 4688, "collect": 67666, "doing": 5322 }
+              "collection": { "on_hold": 1213, "dropped": 628, "wish": 4688, "collect": 67666, "doing": 5322 },
+              "images": {
+                "small": "https://lain.bgm.tv/r/200/pic/cover/l/e2/e7/328609_2EHLJ.jpg",
+                "common": "https://lain.bgm.tv/r/400/pic/cover/l/e2/e7/328609_2EHLJ.jpg"
+              }
             }
         """.trimIndent()
 
         val detail = parseSubjectDetail(text)
 
+        // 详情页封面取 images.common（400px 宽）。
+        assertEquals("https://lain.bgm.tv/r/400/pic/cover/l/e2/e7/328609_2EHLJ.jpg", detail.imageUrl)
         assertEquals("孤独摇滚！", detail.name)
         assertEquals("ぼっち・ざ・ろっく！", detail.originalName)
         assertEquals(8.4, detail.score)
@@ -70,6 +76,7 @@ class SubjectJsonTest {
         assertEquals(listOf(0, 0, 0, 0, 0, 0, 0, 3, 0, 0), detail.ratingCounts)
         assertEquals("", detail.summary)
         assertEquals(SubjectCollection(0, 0, 0, 0, 0), detail.collection)
+        assertNull(detail.imageUrl)
     }
 
     // 角色按“主角 → 配角 → 其他”排序，同类保持原顺序；声优取第一位。
@@ -80,6 +87,8 @@ class SubjectJsonTest {
               { "id": 1, "name": "モブ", "relation": "闲角", "type": 1, "actors": [] },
               { "id": 2, "name": "伊地知虹夏", "relation": "配角", "actors": [ { "id": 10, "name": "鈴代紗弓" } ] },
               { "id": 3, "name": "後藤ひとり", "relation": "主角",
+                "images": { "grid": "https://lain.bgm.tv/pic/crt/g/b1/9c/87968_crt_z9LaF.jpg",
+                            "medium": "https://lain.bgm.tv/r/400/pic/crt/l/b1/9c/87968_crt_z9LaF.jpg" },
                 "actors": [ { "id": 11, "name": "青山吉能" }, { "id": 12, "name": "邱涵菲" } ] },
               { "id": 4, "name": "山田リョウ", "relation": "主角", "actors": [ { "id": 13, "name": "水野朔" } ] }
             ]
@@ -90,6 +99,9 @@ class SubjectJsonTest {
         assertEquals(listOf(3, 4, 2, 1), characters.map { it.id })
         assertEquals("青山吉能", characters[0].voiceActor)
         assertNull(characters.last().voiceActor)
+        // 头像取 images.grid（75×75 的脸部裁切）；没有图片时为 null。
+        assertEquals("https://lain.bgm.tv/pic/crt/g/b1/9c/87968_crt_z9LaF.jpg", characters[0].imageUrl)
+        assertNull(characters.last().imageUrl)
         assertEquals(listOf(true, true, true, false), characters.map { it.isMain })
     }
 
@@ -100,7 +112,10 @@ class SubjectJsonTest {
             {
               "data": [
                 { "id": 54875955, "type": 2, "rate": 9, "comment": "演出太好了", "updatedAt": 1793642889,
-                  "user": { "id": 784444, "username": "784444", "nickname": "凤流川行" } },
+                  "user": {
+                    "id": 784444, "username": "784444", "nickname": "凤流川行",
+                    "avatar": { "small": "https://lain.bgm.tv/r/100/pic/user/l/000/78/44/784444_4lW4O.jpg" }
+                  } },
                 { "id": 2, "type": 3, "rate": 0, "comment": "追番中", "updatedAt": 1793600000,
                   "user": { "id": 1, "nickname": "" } }
               ],
@@ -116,6 +131,10 @@ class SubjectJsonTest {
         assertEquals(listOf(9, null), comments.items.map { it.rate })
         assertEquals("演出太好了", comments.items[0].text)
         assertEquals(1793642889L, comments.items[0].updatedAt)
+        assertEquals(
+            listOf("https://lain.bgm.tv/r/100/pic/user/l/000/78/44/784444_4lW4O.jpg", null),
+            comments.items.map { it.avatarUrl },
+        )
     }
 
     @Test

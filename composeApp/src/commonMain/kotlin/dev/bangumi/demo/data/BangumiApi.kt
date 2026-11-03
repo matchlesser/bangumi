@@ -37,7 +37,7 @@ class BangumiApi(private val client: HttpClient = HttpClient()) {
     suspend fun searchSubjects(keyword: String): List<Subject> {
         val response = client.post("$API_HOST/v0/search/subjects") {
             parameter("limit", SEARCH_LIMIT)
-            header(HttpHeaders.UserAgent, USER_AGENT)
+            header(HttpHeaders.UserAgent, BANGUMI_USER_AGENT)
             contentType(ContentType.Application.Json)
             setBody(searchRequestJson(keyword))
         }
@@ -71,8 +71,7 @@ class BangumiApi(private val client: HttpClient = HttpClient()) {
     /** 发送带 User-Agent 的 GET 请求并返回响应文字。 */
     private suspend fun getText(url: String): String {
         val response = client.get(url) {
-            // Bangumi 要求非浏览器客户端带上“开发者 ID/应用名 (项目主页)”形式的 User-Agent，否则可能被拒绝。
-            header(HttpHeaders.UserAgent, USER_AGENT)
+            header(HttpHeaders.UserAgent, BANGUMI_USER_AGENT)
         }
         return response.textOrThrow()
     }
@@ -91,6 +90,11 @@ class BangumiApi(private val client: HttpClient = HttpClient()) {
         const val NEXT_HOST = "https://next.bgm.tv"
         const val SEARCH_LIMIT = 20
         const val COMMENT_LIMIT = 20
-        const val USER_AGENT = "matchlesser/bangumi (https://github.com/matchlesser/bangumi)"
     }
 }
+
+/**
+ * Bangumi 要求非浏览器客户端带上“开发者 ID/应用名 (项目主页)”形式的 User-Agent，否则可能被拒绝。
+ * 接口请求和图片下载（见 ImageLoading.kt）都使用它；internal 表示只在本模块内可见。
+ */
+internal const val BANGUMI_USER_AGENT = "matchlesser/bangumi (https://github.com/matchlesser/bangumi)"

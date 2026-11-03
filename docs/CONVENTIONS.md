@@ -42,6 +42,7 @@
 - 当前引入界面所需的 Compose 库和 `kotlin("test")` 测试库（版本随 Kotlin 插件固定）；尚未添加持久化或依赖注入库。
 - BG-004 引入网络与 JSON：Ktor 3.3.3（`ktor-client-core` 放在 `commonMain`，`ktor-client-cio` 引擎放在 `desktopMain`）、kotlinx-serialization-json 1.9.0 及版本与 Kotlin 相同的 serialization 插件、kotlinx-coroutines-core 1.10.2；测试使用 kotlinx-coroutines-test 1.10.2。依赖版本直接写在 `composeApp/build.gradle.kts`。
 - 版本上限：2026-11-03 核对，Ktor 3.3.3 以 Kotlin 2.2.21 构建，serialization 1.9.0 以 Kotlin 2.2.0 构建；Ktor 3.4 起和 serialization 1.10 起需要 Kotlin 2.3 以上。升级这些库时要先升级 Kotlin 与 Compose，并重新核对兼容性。
+- BG-014 引入图片库 Coil 3.3.0（`coil-compose`、`coil-network-ktor3`）：以 Kotlin 2.2.0 构建，依赖的 Compose、Ktor 低于本项目版本；3.4.0 起需要 Kotlin 2.3。选它而不是自己下载解码，是因为它已处理异步加载、取消、内存与磁盘缓存，且同时支持将来的移动端。
 - JSON 解析采用“取回文字 → `Json.decodeFromString` 手动解析”，未使用 Ktor 的 ContentNegotiation 插件，以便看清并单独测试转换步骤。
 
 ## 代码组织
@@ -89,9 +90,10 @@
 - 详情页的区块使用 [DetailLayout.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/DetailLayout.kt) 中的部件：`DetailPage`（顶部固定的“← 返回”栏 + 可滚动内容区，边距和最大宽度与搜索页一致）、`DetailSection`（区块标题）、`LoadStateContent`（区块内的加载中 / 失败与重试 / 内容）、`SecondaryText`（来源、统计等次要文字）。新的详情类页面沿用这些部件。
 - 当前演示页为 [SubjectListScreen.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/screens/SubjectListScreen.kt)，使用 Material 3 默认浅色主题和统一条目卡片。主题与间距集中在 [BangumiTheme.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/theme/BangumiTheme.kt)。
 - 评分统一使用 [ScoreLabel.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ScoreLabel.kt)，不在页面中重复“暂无评分”判断；角色定位、收藏状态、作品类型等小标签统一使用同一文件中的 `TagLabel`。
+- 网络图片统一使用 [RemoteImage.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/RemoteImage.kt)：浅色占位底、等比裁切，没有图片或加载失败时只显示占位，布局不跳动。图片尺寸集中在 `AppDimensions`（列表封面 64×90、详情封面 140×196、小封面 40×56、头像 48 与 32）。旁边已有文字的图片 `contentDescription` 传 null。按显示尺寸选择接口提供的图片规格（如 small、common、grid），不在列表中加载原图；只给原图时用 `resizedImageUrl` 转成 `/r/宽度/` 缩略图。
 - 可点击的卡片统一使用 [ClickableCard.kt](../composeApp/src/commonMain/kotlin/dev/bangumi/demo/ui/components/ClickableCard.kt)：获得键盘焦点时显示主题色描边（宽度为 `AppDimensions.focusBorderWidth`），让焦点不只靠底色深浅区分。
 - 图表除图形外同时写出具体数值（例如评分分布每行都有人数和百分比），不只靠长度或颜色传达信息。
-- 已保存 [首个窗口截图](images/first-window.jpg)、[详情页截图](images/bg-003-detail.jpg)、[卡片焦点截图](images/bg-003-card-focus.jpg)、[搜索结果截图](images/bg-004-search-results.jpg)、[搜索失败截图](images/bg-004-search-error.jpg)、[评分分布截图](images/bg-005-rating.jpg)、[角色与吐槽截图](images/bg-005-characters-comments.jpg) 和 [角色详情截图](images/bg-013-character.jpg) 供查看；长期品牌色和视觉基准仍待后续反馈确定。
+- 已保存 [首个窗口截图](images/first-window.jpg)、[详情页截图](images/bg-003-detail.jpg)、[卡片焦点截图](images/bg-003-card-focus.jpg)、[搜索结果截图](images/bg-004-search-results.jpg)、[搜索失败截图](images/bg-004-search-error.jpg)、[评分分布截图](images/bg-005-rating.jpg)、[角色与吐槽截图](images/bg-005-characters-comments.jpg)、[角色详情截图](images/bg-013-character.jpg)，以及带图片的 [搜索列表](images/bg-014-list.png)、[条目详情](images/bg-014-subject.png)、[角色头像](images/bg-014-characters.png) 和 [角色详情](images/bg-014-character.png) 供查看；长期品牌色和视觉基准仍待后续反馈确定。
 
 ## 验证与版本管理
 
